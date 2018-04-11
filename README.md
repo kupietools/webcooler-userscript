@@ -1,2 +1,2 @@
 # webcooler-userscript
-WebCooler removes hotbutton words from web content to cool it down before it makes you want to do something intemperate.
+WebCooler removes hotbutton content from the web to cool it down before it makes you want to do something intemperate.
