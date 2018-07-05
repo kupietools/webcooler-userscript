@@ -1,12 +1,12 @@
 // ==UserScript==
-// @name WebCooler Staging
+// @name WebCooler
 // @namespace http://www.kupietz.com/WebCooler
 // @description	Version 3.3: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
 // @include http://*
 // @include https://*
-// @grant none
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js
+// @grant none
 // ==/UserScript==
 /*
     Author: Michael Kupietz https://www.kupietz.com
@@ -28,7 +28,7 @@
         along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Version: 3.3
-    3.3 Added async, performance enhancements, contextual menu and keystroke unexemption options, lots of other stuff, read the diff. 
+    3.3 Added async, performance enhancements, contextual menu and keystroke unexemption options, lots of other stuff, read the diff.
     3.2 added and subsequently removed debugout. Oh well. Added try/catch to main to hopefully alert on errors, since some browsers truncate logs despite your best efforts to see what the f you're doing.
     3.1 changed function main() to use mutation.addedNodes when available instead of mutation.target... seems way faster! Also fixed some bugs. YouTube pages work again. Created some code (currently commented out) to store log in comments in page <head> for when FireFox's console log is broken, like tonight.
     3.0 jshinted and added fb softblock by name
@@ -41,12 +41,15 @@
 // Licensed for unlimited modification and redistribution as long as
 // this notice is kept intact.
 
-/* todo: configuration options https://github.com/odyniec/MonkeyConfig or https://github.com/sizzlemctwizzle/GM_config/ */
+/* todo: configuration options https://github.com/odyniec/MonkeyConfig or https://github.com/sizzlemctwizzle/GM_config/
+NO! These only store values per domain, which appears to be a completely useless function. My kingdom for an easy way to
+bring up an options dialog and store values without having to hardcode them into the script! */
+
 
 var observerEnable = true;
 var bugout = new debugout();
-/* sweitches & debugging options */
-var CONSOLE_DEBUGGING_MESSAGES_ON = true ;//new RegExp(/normal|ultra|greencrit/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
+/* switches & debugging options */
+var CONSOLE_DEBUGGING_MESSAGES_ON = false ;//new RegExp(/normal|ultra|greencrit/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
 /*** CAUTION CONSOLE_DEBUGGING_MESSAGES_ON != false is a HUGE performance hit! It completely broke Twitter for me tonight. ***/
 /*** TURN IT OFF WHEN YOU ARE DONE DEBUGGING. ***/
 var TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE = "trxpo"; //turn logging on if this is found. Debugging tool for catching sporadic problems that disappear when you turn on logging and reload the page.
@@ -254,6 +257,21 @@ if (typeof GM_registerMenuCommand == 'undefined') {
 }
 
 
+var cfg = new MonkeyConfig({
+    title: 'AwesomeScript Configuration',
+    menuCommand: true,
+    params: {
+        font_size: {
+            type: 'select',
+            choices: [ 'Small', 'Medium', 'Large' ],
+            default: 'Medium'
+        },
+        auto_adjust: {
+            type: 'text',
+            default: "blah"
+        }
+    }
+});
 
 $(document).keydown(function (e) {
     console.log(e);
@@ -1047,6 +1065,9 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
     logForDebugging("EXEMPTION: theCurrPrefString ", theCurrPrefString);
     var thisPageIsExempt = HILIGHT_ONLY || !(theCurrPrefString.match("<url>" + escape(encodeURIComponent(document.location.href)) + "<endurl>") === null);
     logForDebugging("EXEMPTION: thisPageIsExempt ", thisPageIsExempt);
+
+
+
       if (thisPageIsExempt) {
           GM_registerMenuCommand("Unexempt this page", unexemptThisPage, "");
                 logForDebugging("~~~ √970√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
@@ -1070,6 +1091,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 logForDebugging("~~~~~ √970√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
       } else
       {  GM_registerMenuCommand("Exempt this page", exemptThisPage, "");}
+
     var theDummy = {
 
         addedNodes: [document.body],
@@ -1116,13 +1138,12 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 logForDebugging("OBSERVED: 2. testing mutation target tagname: " + $(mutation.target).text().substr(0, 50), mutation.target.tagName, "observer");
                 logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + $(mutation.target).text().substr(0, 50), mutation.target.innerHTML, "observer");
 }
-                if ((mutation.target.tagName != "BODY" || $(document.body).data("firstrun") != thisSessionID) && mutation.type == "childList" && !mutation.addedNodes[0].isContentEditable) {
+                if ((mutation.target.tagName != "BODY" || $(document.body).data("firstrun") != thisSessionID) && mutation.type == "childList" && !mutation.addedNodes.length>0 && !mutation.addedNodes[0].isContentEditable) {
                     logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || $(document.body).data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutation.target.tagName, "ULTRA");
                     logForDebugging("~~~ √1006√   $(document.body).data(''firstrun'') = ",  $(document.body).data("firstrun") , "ULTRA");
                     logForDebugging("~~~ √1006√ thisSessionID = ", thisSessionID , "ULTRA");
                     /* just added these 7/4/18: && mutation.type == "childList" && !mutation.addedNodes[0].isContentEditable - can remove from nested conditional below if works for a while */
-                    logForDebugging("~~~ √1006√ mutation.type = ", mutation.type , "ULTRA");
-                    logForDebugging("~~~ √1006√ mutation.addedNodes[0] = ", mutation.addedNodes[0] , "ULTRA");
+                    logForDebugging("~~~ √1006√ mutation = ", mutation , "ULTRA");
                     //just process the changed bits, not the whole body more than once per session, ok?
                     $(document.body).data("firstrun", thisSessionID);
                     if(CONSOLE_DEBUGGING_MESSAGES_ON != false) {
