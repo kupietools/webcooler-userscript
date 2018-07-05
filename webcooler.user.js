@@ -1,12 +1,12 @@
 // ==UserScript==
-// @name WebCooler
+// @name WebCooler Staging
 // @namespace http://www.kupietz.com/WebCooler
 // @description	Version 3.3: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
-// @grant none
 // @include http://*
 // @include https://*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js
+// @grant none
 // ==/UserScript==
 /*
     Author: Michael Kupietz https://www.kupietz.com
@@ -1121,7 +1121,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 logForDebugging("OBSERVED: 2. testing mutation target tagname: " + $(mutation.target).text().substr(0, 50), mutation.target.tagName, "observer");
                 logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + $(mutation.target).text().substr(0, 50), mutation.target.innerHTML, "observer");
 }
-                if ((mutation.target.tagName != "BODY" || $(document.body).data("firstrun") != thisSessionID) && mutation.type == "childList" && !mutation.addedNodes.length>0 && !mutation.addedNodes[0].isContentEditable) {
+                if ((mutation.target.tagName != "BODY" || $(document.body).data("firstrun") != thisSessionID) && mutation.type == "childList" && (mutation.addedNodes.length>0 ? !mutation.addedNodes[0].isContentEditable:false /* need ternary operator to avoid 'undefined' */)) {
                     logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || $(document.body).data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutation.target.tagName, "ULTRA");
                     logForDebugging("~~~ √1006√   $(document.body).data(''firstrun'') = ",  $(document.body).data("firstrun") , "ULTRA");
                     logForDebugging("~~~ √1006√ thisSessionID = ", thisSessionID , "ULTRA");
