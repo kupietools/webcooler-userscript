@@ -2,11 +2,11 @@
 // @name WebCooler
 // @namespace http://www.kupietz.com/WebCooler
 // @description	Version 3.3: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
+// @grant none
 // @include http://*
 // @include https://*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js
-// @grant none
 // ==/UserScript==
 /*
     Author: Michael Kupietz https://www.kupietz.com
@@ -255,23 +255,6 @@ if (typeof GM_registerMenuCommand == 'undefined') {
     menu.appendChild(menuItem);
   }
 }
-
-
-var cfg = new MonkeyConfig({
-    title: 'AwesomeScript Configuration',
-    menuCommand: true,
-    params: {
-        font_size: {
-            type: 'select',
-            choices: [ 'Small', 'Medium', 'Large' ],
-            default: 'Medium'
-        },
-        auto_adjust: {
-            type: 'text',
-            default: "blah"
-        }
-    }
-});
 
 $(document).keydown(function (e) {
     console.log(e);
