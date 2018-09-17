@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name WebCooler Staging
 // @namespace http://www.kupietz.com/WebCooler
-// @description	Version 3.3: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
+// @description	Version 3.4: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
 // @include http://*
 // @include https://*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
-// @require https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js
+// @require https://code.jquery.com/jquery-3.3.1.slim.min.js
 // @grant none
 // ==/UserScript==
 /*
@@ -28,6 +28,7 @@
         along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Version: 3.3
+    3.4 Numerous optamazetions. Replace each with for loops, cache lengths and $() objects in variables
     3.3 Added async, performance enhancements, contextual menu and keystroke unexemption options, lots of other stuff, read the diff.
     3.2 added and subsequently removed debugout. Oh well. Added try/catch to main to hopefully alert on errors, since some browsers truncate logs despite your best efforts to see what the f you're doing.
     3.1 changed function main() to use mutation.addedNodes when available instead of mutation.target... seems way faster! Also fixed some bugs. YouTube pages work again. Created some code (currently commented out) to store log in comments in page <head> for when FireFox's console log is broken, like tonight.
@@ -47,18 +48,18 @@ bring up an options dialog and store values without having to hardcode them into
 
 
 var observerEnable = true;
-var bugout = new debugout();
+
 /* switches & debugging options */
 var CONSOLE_DEBUGGING_MESSAGES_ON = false ;//new RegExp(/normal|ultra|greencrit/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
 /*** CAUTION CONSOLE_DEBUGGING_MESSAGES_ON != false is a HUGE performance hit! It completely broke Twitter for me tonight. ***/
 /*** TURN IT OFF WHEN YOU ARE DONE DEBUGGING. ***/
-var TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE = "trxpo"; //turn logging on if this is found. Debugging tool for catching sporadic problems that disappear when you turn on logging and reload the page.
+var TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE = ""; //turn logging on if this is found. Leave set to "" to improve performance. Debugging tool for catching sporadic problems that disappear when you turn on logging and reload the page.
 var CONSOLE_MESSAGES_ADDED_TO_HEAD = false; //add messages to document head, for when FireFox annoyingly truncates logs
 var HILIGHT_ONLY = false; //consider all pages exempt and hilite rather than remove. turn this on if the damn cookie system breaks again
 var HILIGHT_ELEMENTS_BEING_PROCESSED = false; //visual cue as each page element is processed?
 var RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED = false; //Do I even use this anymore? I dunno
 var MAX_NUMBER_OF_CALLS_PER_PAGE = 1000000; //prevent endless loops. Set to very high number for actual production use.
-var BLOCK_ONLY_IMAGES_CONTAINING_ONLY_TEXT = true; //hide FB
+var BLOCK_ONLY_IMAGES_CONTAINING_ONLY_TEXT = true; //hide tweets & probably some memes on FB
 
 logForDebugging("Starting - logging ", CONSOLE_DEBUGGING_MESSAGES_ON);
 
@@ -76,7 +77,7 @@ this.$ = this.jQuery = jQuery.noConflict(true);
 /* the below all are regexps. BadWords match text, ones marked as selectors match jquery selectors. */
 
 var globalBadWords =
-    "Breitbart|apricity|mansplain|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|sarah sanders|red hen|fake news|roseanne|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Z]*NRA[^A-Z]*|scott pruitt|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|huckabee sanders|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|shkreli|political[lly]* correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|mccain|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington ?post|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|safe\ space|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
+    "Breitbart|apricity|mansplain|jordan peterson|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|sarah sanders|red hen|fake news|roseanne|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Z]*NRA[^A-Z]*|scott pruitt|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|huckabee sanders|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|shkreli|political[lly]* correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|mccain|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington ?post|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|safe\ space|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
 /* Please note, my personal collection of badWords is selected not by political ideology, but by what seems to attract either the most heated or the most egregiously stupid comments and content online, regardless of political slant. Any apparent political alignment is strictly a 'shoe fits' situation. Also a couple of what I think are totally biased and unreliable propaganda sites and commentators on both ends of the spectrum. */
 var selectorsToConsiderTogether =
     'aside|#hyperfeed_story_id|li[data-hveid]|div[data-hook="review"]|li.yt-shelf-grid-item.yt-uix-shelfslider-item';
@@ -92,7 +93,7 @@ var selectorsToAlwaysHide = "div.cnnoutbrain|div.outbrain-hotlist|div.outbrain-m
 var siteSpecificBadWords = {
 
     /* social media sites*/
-    "twitter.com$|reddit.com$|facebook.com$|youtube.com$": "jill stein|traitor|Ivanka|same[- ]sex|Jared Kushner|\\bpence\\b|\\bgender\\b|nikki haley|MSM|deplorable|medicaid|melania|the left|climate change|global warming|russia|walmart|wal-mart|[^a-zA-Z]NRA[^a-zA-Z]|nader|climate scien|single[ -]*payer|racism|net neutrality|gubb[aer]+m[ie]+nt|(second|2nd) amendment|government spend|prsident|zionis|taxpayer|anti-*semit|republican|democratic party|democrats?\\b|liberals|healthcare|extremist|comey\\b|narrative|libertarian|antifa\\b|bakedalaska|protestor|conservatives|poor people|gov'?t|climate change|terroris[tm]|tax plan|snowflake|global warming|drain the swamp|feminis[tm]|\\bMRA|PUA\\b|unborn|\\btwp|rac(ial|e) realism|venezuela|abortion|\\bISIS\\b|devos|communist|commie|socialist|\\bweev\\b|aurenheimer|white (house|guys)|obama|bDNC\\b|cultural\\ appropriation|hate\\ crime|\RNC\\b|democratic socialism|leftist|rightist|mar-?a-?lago|(white|black|brown) *(wom[ae]n|m[ae]n|people|(-*skin))|burqa|Kellyanne\\ Conway|illegal alien|\\bTrump\\b|white nationalist|Nazi|This tweet is unavailable.",
+    "twitter.com$|reddit.com$|facebook.com$|youtube.com$": "jill stein|McCain|soros|Kavanaugh|traitor|Ivanka|same[- ]sex|Jared Kushner|\\bpence\\b|\\bgender\\b|nikki haley|MSM|deplorable|medicaid|melania|the left|climate change|global warming|russia|walmart|wal-mart|[^a-zA-Z]NRA[^a-zA-Z]|nader|climate scien|single[ -]*payer|racism|net neutrality|gubb[aer]+m[ie]+nt|(second|2nd) amendment|government spend|prsident|zionis|taxpayer|anti-*semit|republican|democratic party|democrats?\\b|liberals|healthcare|extremist|comey\\b|narrative|libertarian|antifa\\b|bakedalaska|protestor|conservatives|poor people|gov'?t|climate change|terroris[tm]|tax plan|snowflake|global warming|drain the swamp|feminis[tm]|\\bMRA|PUA\\b|unborn|\\btwp|rac(ial|e) realism|venezuela|abortion|\\bISIS\\b|devos|communist|commie|socialist|\\bweev\\b|aurenheimer|white (house|guys)|obama|bDNC\\b|cultural\\ appropriation|hate\\ crime|\RNC\\b|democratic socialism|leftist|rightist|mar-?a-?lago|(white|black|brown) *(wom[ae]n|m[ae]n|people|(-*skin))|burqa|Kellyanne\\ Conway|illegal alien|\\bTrump\\b|white nationalist|Nazi|This tweet is unavailable.",
     "twitter.com$": "\\bshill\\b",
     /*common troll comment on twitter, used in other ways on non-political Reddit subs */
     "tumblr.com": "#branflake|#kung-fu kutie",
@@ -129,7 +130,7 @@ var siteSpecificSelectorsToConsiderTogether = {
     "abcnews.go.com$": "article.news-feed-item",
     "theguardian.com$": "li.fc-slice__item|li.headline-list__item|li.right-most-popular-item",
     "usatoday.com": "a.srrfsm-link",
-    "nytimes.com$": "li.collection-item|div.Recirculation-recirculationItem--1bXrY|ul.menu.layout-horizontal.theme-story li|aside.trending-module div ol li",
+    "nytimes.com$": "li.collection-item|li.Ribbon-ribbonStory--2vH2y|div.Recirculation-recirculationItem--1bXrY|ul.menu.layout-horizontal.theme-story li|aside.trending-module div ol li",
     "bbc.com$": "div.features-and-analysis__story",
     "newsblur.com$": "div.NB-story-title.NB-story-grid.NB-story-neutral",
     "npr.org$": "div.story-recommendations__result",
@@ -146,8 +147,9 @@ var siteSpecificSelectorsToConsiderTogether = {
 
 var siteSpecificSelectorsToAlwaysHide = {
 
-    "facebook.com$": "div.pagelet-group.pagelet|div[role='article']:has(img[alt*='may contain: text'])|div.UFIRow.UFIComment[hiddenbyscript=true]+div.UFIReplyList|div[data-referrer='pagelet_trending_tags_and_topics']|" +
-        fb_OutermostWhiteBox +
+    "facebook.com$": "div.pagelet-group.pagelet|div[role='article']:has(img[alt*='may contain: text'])|div[role='article']:has(img[alt*=', text'])|div.UFIRow.UFIComment[hiddenbyscript=true]+div.UFIReplyList|div[data-referrer='pagelet_trending_tags_and_topics']|" +
+    /* careful this crashed the script: div[role='article']:has(img[alt*='may contain:[^']*text']) */
+    fb_OutermostWhiteBox +
         ":has(" + fb_postContent + "[hiddenbyscript=true])|" +
         fb_OutermostWhiteBox +
         ":has(div._14bf)",
@@ -161,7 +163,7 @@ var siteSpecificSelectorsToAlwaysHide = {
 /* ._5r69 seems to be the div surrounding a shared post. */ /* _5x46 is the header with who posted and who it was shared from */ /* div._14bf is either "suggested post" or "sponsored" */ /* div.pagelet-group.pagelet is suggested pages (or is it groups? Or both?) */
 /* use div[role='article']:has(img[alt~='text'][alt*='may contain:']) to block any FB images that contain text even if the contain other things. */
 /* before simplification, FB also had "div.fbUserContent:has(div.fbUserContent:has(div.userContent[hiddenbyscript=true]))|div._4-u2.mbm._4mrt._5jmm._5pat._5v3q._4-u8:has(div.userContent:has([hiddenbyscript=true]))|div._5r69:has([hiddenbyscript=true])|div._5x46:has([hiddenbyscript=true])|div._4-u2.mbm._4mrt._5jmm._5pat._5v3q._4-u8:has(div._5x46[hiddenbyscript=true])|div._4-u2.mbm._4mrt._5jmm._5pat._5v3q._4-u8:has(div._1dwg[hiddenbyscript=true])|" */
-
+/* I think div._3b-9._j6a is comments on image lightboxes. Sick of seeing people's stupid comments on things I click on to save. NOPE it's all comment blocks. Gotta refine that one. */
 /*** END BLOCKING LISTS ***/
 
 /* following vars not used yet: */
@@ -226,13 +228,6 @@ var exemptRegexp = new RegExp(exemptSites, "gi");
 var theBadFBURLWords = new RegExp("https?\:\/\/[w.]*facebook\.com\/(" + badFBURLWords + ")[?/]", "gi");
 var theBadFBNames = new RegExp("mdelimiter(" + badFBNames + ")mdelimiter", "gi");
 
-/* this was to save debout's log by hitting the Option key. Right now, debugout is disabled again due to mysterious errors, so, disabled.
-$(document).keydown(function (e) {
-    if (e.keyCode == 18) {
-        bugout.downloadLog();
-    }
-});
-*/
 
 
 if (typeof GM_registerMenuCommand == 'undefined') {
@@ -257,7 +252,6 @@ if (typeof GM_registerMenuCommand == 'undefined') {
 }
 
 $(document).keydown(function (e) {
-    console.log(e);
     if (e.originalEvent.ctrlKey && e.originalEvent.altKey && e.originalEvent.shiftKey && e.originalEvent.keyCode == 32) {
         exemptThisPage(0); //EXEMPT PAGE WITH CTRL-OPTION-SHIFT-SPACE
     }
@@ -279,7 +273,7 @@ function attachSiteSpecifics(globalString, siteSpecificArray) {
         logForDebugging("Checking key ", key);
         var value = siteSpecificArray[key];
         var hostRegexp = new RegExp(key, "gi");
-        var hostMatch = document.location.hostname.match(hostRegexp);
+        var hostMatch = document.location.hostname.match(hostRegexp); /* time consuming, according to chrome profiler 1.3 secs */
         logForDebugging("About to match 3 ", hostMatch);
         if (hostMatch !== null) {
             logForDebugging("~~~ √235√ 'if ( hostMatch !== null) ' ~ ~ ~", "", "ULTRA");
@@ -302,15 +296,13 @@ var theNotAsBadWords = new RegExp(notAsBadWords, "gi");
 var theBadWords_forURLs = new RegExp(badURLWords, "gi");
 var allBadWords = new RegExp(badURLWords + "|" + notAsBadWords + "|" + globalBadWords, "gi");
 */
-$.extend($.expr[":"], {
+/*$.extend($.expr[":"], {
     followsWebCooled: function(a) {
 
         return $(a).prev().attr("hiddenByScript") == "true";
     }
-}); /* maybe I'll use this... someday... */
+});*/ /* maybe I'll use this... someday... */
 
-$(document.body).attr("wcHash", stupidHash(document.location.href)); /* custom hash usable in exemptsites variable */
-$(document.body).attr("wcHashHost", "H" + stupidHash(document.location.hostname)); /* custom hash usable in exemptsites variable */
 
 function stupidHash(theString) {
 
@@ -323,7 +315,17 @@ function stupidHash(theString) {
     return out.toString();
 }
 
+
+var docbodyjq=$(document.body);
+if(!document.body.hasAttribute("wcHash")) {
+docbodyjq.attr("wcHash", stupidHash(document.location.href)); /* custom hash usable in exemptsites variable */  /* time consuming, according to chrome profiler 1.1 secs */
+}
+if(!document.body.hasAttribute("wcHashHost")) {
+    docbodyjq.attr("wcHashHost", "H" + stupidHash(document.location.hostname)); /* custom hash usable in exemptsites variable */
+}
+
 async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMatches) {
+    
     logForDebugging("~~~ √270√ starting 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~", "", "ULTRA");
     /* big stuff happens here */
     logForDebugging("Main running. Mutation:", mutation);
@@ -338,6 +340,7 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
         logForDebugging("In for loop:", "iteration " + i + " of " + loopLength);
         var targetNotJQ = mutation.type = "childList" ? mutation.addedNodes[i] : mutation.target; //we checked that addedNodes has length >0 before calling main(), so no error here
         var thisTarget = $(targetNotJQ);
+        if (thisTarget.is(':visible') && thisTarget.attr("hiddenByScript") !="true"){
         //only check the mut.target if no nodes are recorded as having been added
         var mutationParent = thisTarget.parent();
         /* You know, if the mutationtype is "added nodes", you can get the added nodes from the mutation object and just check those. If nodes are removed, it may be marked "added nodes" but then the addednodes attribute is empty and removednodes is not. */
@@ -379,37 +382,39 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
             /* var theseNodes=thisTarget
             .find("*")
             .addBack(); */
-            thisTarget
+          var  theseNodesForEach = thisTarget
                 .find(selectorsToConsiderTogetherRegex).addBack(selectorsToConsiderTogetherRegex)
                 .filter(function() {
+                var filtThis = this;
+                var filtThisjq= $(this);
                     logForDebugging("~~~ √312√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
                     if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
                         logForDebugging("~~~ √313√  'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
                         /* debugger; */
-                        this.style =
+                        filtThis.style =
                             "border: 5px dotted rgba(0,0,160,1) !important; background:rgba(0,0,255,.5) !important;" +
-                            this.style;
-                        $(this).data("highlighted", true);
+                            filtThis.style;
+                       filtThisjq.data("highlighted", true);
 
                     }
-                    var theBadWordsFound = $(this).text().match(currentMatches) ? $(this).text().match(theBadWords) : null; /* check current matches first to save time, then check against actual regex so partial text matches dont cause false positives (IE 'hanran' doesn't match "NRA" in the second one.) */
-                    if (theBadWordsFound !== null && (!$(this).data("scriptprocid") ||
-                            $(this).data("scriptprocid") != sessionID) &&
+                    var theBadWordsFound = filtThisjq.text().match(currentMatches) ? filtThisjq.text().match(theBadWords) : null; /* check current matches first to save time, then check against actual regex so partial text matches dont cause false positives (IE 'hanran' doesn't match "NRA" in the second one.) */
+                    if (theBadWordsFound !== null && (!filtThisjq.data("scriptprocid") ||
+                            filtThisjq.data("scriptprocid") != sessionID) &&
                         /* was: !$(this).prop("isContentEditable") */
-                        (thisActiveElement.tagname == "BODY" ? true : (!!$(this).prop("isContentEditable") == false && $(this).has("[contenteditable]").length == 0)) /* rejects anything with editable descendants */
+                        (thisActiveElement.tagname == "BODY" ? true : (!!filtThisjq.prop("isContentEditable") == false && filtThisjq.has("[contenteditable]").length == 0)) /* rejects anything with editable descendants */
                     ) {
                         logForDebugging("~~~ √321√ starting 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~", "", "ULTRA");
                         if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
                             logForDebugging("~~~ √328√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
                             /* debugger; */
-                            this.style =
+                            filtThis.style =
                                 "border: 5px dotted rgba(0,160,160,1) !important; background:rgba(0,255,255,.5) !important;" +
-                                this.style;
-                            $(this).data("highlighted", true);
+                                filtThis.style;
+                            filtThisjq.data("highlighted", true);
 
                         }
 
-                        logForDebugging("found '" + theBadWordsFound + "' in selectorsToConsiderTogether", this);
+                        logForDebugging("found '" + theBadWordsFound + "' in selectorsToConsiderTogether", filtThis);
                         logForDebugging("~~~~~ √321√ ending 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
                         return true;
                     } else {
@@ -418,30 +423,38 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                         return false;
                     }
                     logForDebugging("~~~~~ √312√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
-                })
-                .each(function() {
+                }); /* end filter function */
+var theseNodesForEachl = theseNodesForEach.length;
+            //start replacement to get rid of .each() because it's very slow
+for (var theseNodesForEachi=0;theseNodesForEachi<theseNodesForEachl; theseNodesForEachi++) {
+var tn=theseNodesForEach[theseNodesForEachi];
+    var tnjq=$(tn);
+
+
                     logForDebugging("~~~ √347√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
                     if (thisPageIsExempt) {
                         logForDebugging("~~~ √348√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
-                        $(this)
+                        tnjq
                             .css("border", "3px solid red")
                             .css("background", "rgba(255,225,225,.5)")
                             .attr("hiddenByScript", "true");
-                        logForDebugging("TEST added red to", this);
+                        logForDebugging("TEST added red to", tn);
 
                     } else {
                         logForDebugging("~~~ √353√ 'else ' ~ ~ ~", "", "ULTRA");
-                        $(this)
+                        tnjq
                             .hide()
-                            .data("savedstyle", $(this).attr("style"))
+                            .data("savedstyle", tnjq.attr("style"))
                             .attr("style", "display:none !important")
                             .attr("hiddenByScript", "true");
 
                     }
-                    wcSetAttributeSafely(this, "scriptprocid", sessionID);
-                    logForDebugging("added red to", this);
+                    wcSetAttributeSafely(tn, "scriptprocid", sessionID);
+                    logForDebugging("added red to",tn);
                     logForDebugging("~~~~~ √347√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
-                });
+
+}
+//end replacement
 
             /* TEXT NODES ONLY NOW: */
             var walk = thisTarget /*find ordinarily only returns child elements unless you add addBack.*/
@@ -452,19 +465,21 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                      return (this.nodeType === 3);
                 })
                 .filter(function() {
+                var theFiltThis=this;
+                var theFiltThisjq=$(this);
                     logForDebugging("~~~ √372√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
-                    logForDebugging("filtering node:", this, "greenCrit");
-                    logForDebugging("filtered nodeValue is:", this.nodeValue, "greenCrit");
+                    logForDebugging("filtering node:", theFiltThis, "greenCrit");
+                    logForDebugging("filtered nodeValue is:", theFiltThis.nodeValue, "greenCrit");
                   /*  logForDebugging("filtered node value - currentMatches is:", currentMatches, "greenCrit"); */
                     /* logForDebugging("filtered node value - theBadWords is:", theBadWords,"greenCrit"); */
 
-                    var theBadWordsNodeValueFound =  this.nodeValue.match(/[a-zA-Z]*/) ?this.nodeValue.match(currentMatches) ? this.nodeValue.match(theBadWords) : null:null; /* first make sure theres even text content to filter *//*see comment above on previous use of this about this */
+                    var theBadWordsNodeValueFound =  theFiltThis.nodeValue.match(/[a-zA-Z]*/) ?theFiltThis.nodeValue.match(currentMatches) ? theFiltThis.nodeValue.match(theBadWords) : null:null; /* first make sure theres even text content to filter *//*see comment above on previous use of this about this */
                     var theCriteria =
                         theBadWordsNodeValueFound !== null &&
-                        (thisActiveElement.tagName == "BODY" ? true : (!!$(this).prop("isContentEditable") == false && !!$(this).has("[contenteditable]").length == false)); /* rejects anything with editable descendants */
+                        (thisActiveElement.tagName == "BODY" ? true : (!!theFiltThisjq.prop("isContentEditable") == false && !!theFiltThisjq.has("[contenteditable]").length == false)); /* rejects anything with editable descendants */
                     /* was !$(this).prop( "isContentEditable" ) /~ cant use === false because .prop("isContentEditable") === undefined for text nodes ~/ */
                     /* update... !!value will coerce value=undefined to false */
-                    var tempVar = $(this);
+                    var tempVar = theFiltThisjq;
                     var theCritResult = {
                         "overall": theCriteria,
                         "theBadWordsNodeValueFound": theBadWordsNodeValueFound,
@@ -484,27 +499,30 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                         logForDebugging("theBadWordsNodeValueFound ", theBadWordsNodeValueFound, "greenCrit");
                         logForDebugging("document.activeElement.tagName ", thisActiveElement.tagName, "greenCrit");
                         logForDebugging("$(this) ",
-                            $(this)
+                            tempVar
                         );
                         logForDebugging("$(this).prop(isContentEditable) ",
-                            $(this).prop("isContentEditable"), "greenCrit"
+                            tempVar.prop("isContentEditable"), "greenCrit"
                         );
                         logForDebugging("$(this).has([contenteditable]).length ",
-                            $(this).has("[contenteditable]").length, "greenCrit"
+                            tempVar.has("[contenteditable]").length, "greenCrit"
                         );
 
 
                     }
                     logForDebugging("~~~~~ √372√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
                     return theCriteria;
-                });
+                }); /* filter function 2 done */
             logForDebugging("about to walk text leaves:", walk);
-
-            walk.each(function() {
+//about to replace walk.each
+        var walkl=walk.length;
+            for (var walki=0;walki<walkl; walki++){
+                var wvar=walk[walki];
+                var wvjq=$(wvar);
                 logForDebugging("~~~ √420√ starting 'function( ) ' ~ ~ ~","beginning to look for selectors to consider together", "ULTRA");
-                logForDebugging("walking text leaf:", this[0] || this); /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
-                var theClosest = $(this).closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
-                var theClosestBlock = theClosest.length === 0 ? $(this).closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]'*/ ) : theClosest;
+                logForDebugging("walking text leaf:", wvjq[0] || wvar); /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
+                var theClosest = wvjq.closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
+                var theClosestBlock = theClosest.length === 0 ? wvjq.closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]'*/ ) : theClosest;
                 theClosest = theClosest.length === 0 ? theClosestBlock : theClosest;
                 /* sometimes the mutation target is just a text node that changed (like clicking a "more" link on facebook. In that case, see if it's enclosed in one of selectorsToConsiderTogether before just looking for the closest() parent block element. */
                 logForDebugging("theClosestBlock:", theClosestBlock);
@@ -535,17 +553,24 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                 }
                 logForDebugging("added green to", theClosest[0] || theClosest); /* don't know why theClosest[0] is sometimes, maybe always, not evaluating. don't care right now. */
                 logForDebugging("~~~~~ √420√ ending 'function( ) ' ~ ~ ~ ~ ~", "endinging looking for selectors to consider together", "ULTRA");
-            });
+            }
+
+
+
+                //end replacement
+
             logForDebugging("done walking text leaves", walk);
 
             /* NOW A ONLY */
             var theseAnodes = thisTarget
                 .find("span.fwb, a[data-hovercard]").addBack("span.fwb, a[data-hovercard]").filter(function() {
                     logForDebugging("filtering theseAnodes",  this, "ULTRA"); // WAS .find("A,span.fwb") , BUT DON'T NEED A, NAME IS ENOUGH
+                    var theFiltThis = this;
+                    var theFiltThisjq = $(this);
 
-                    return (typeof $(this).data() === "object" &&
-                        (!$(this).data("scriptprocid") ||
-                            $(this).data("scriptprocid") != sessionID)); /* it seemed to work without this semicolon, but jshint said I need it. */
+                    return (typeof theFiltThisjq.data() === "object" &&
+                        (!theFiltThisjq.data("scriptprocid") ||
+                            theFiltThisjq.data("scriptprocid") != sessionID)); /* it seemed to work without this semicolon, but jshint said I need it. */
 
                 });
             /* that was A selectors to consider together, this is other A nodes */
@@ -553,13 +578,15 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
             var aWalk = theseAnodes /*find ordinarily only returns child elements unless you add addBack.*/
 
                 .filter(function() {
+                var theFiltThis = this;
+                var theFiltThisjq = $(this);
                     logForDebugging("~~~ √475√ 'function( ) ' ~ ~ ~", "", "ULTRA");
-                    wcSetAttributeSafely(this, "scriptprocid", sessionID);
+                    wcSetAttributeSafely(theFiltThis, "scriptprocid", sessionID);
                     var itsAhref = false; /* was (typeof this.href) === 'string' && (this.href.match(theBadFBURLWords) || ("mdelimiter"+$(this).text()+"mdelimiter").match(theBadFBNames)) && this.href != "#"; */
-                    var itsFWBSpan = (typeof this.tagName) === 'string' && this.tagName == "SPAN" /* fails if not uppercase */ && $(this).hasClass("fwb");
-                    var itsDataHovercard = (typeof this.tagName) === 'string' && this.tagName == "A" && $(this).is("[data-hovercard]");
-                    var itsAname = (itsFWBSpan || itsDataHovercard) && ("mdelimiter" + $(this).text() + "mdelimiter").match(theBadFBNames);
-                    logForDebugging("found A section fwb span", $(this).text());
+                    var itsFWBSpan = (typeof theFiltThis.tagName) === 'string' && theFiltThis.tagName == "SPAN" /* fails if not uppercase */ && theFiltThisjq.hasClass("fwb");
+                    var itsDataHovercard = (typeof theFiltThis.tagName) === 'string' && theFiltThis.tagName == "A" && theFiltThisjq.is("[data-hovercard]");
+                    var itsAname = (itsFWBSpan || itsDataHovercard) && ("mdelimiter" + theFiltThisjq.text() + "mdelimiter").match(theBadFBNames);
+                    logForDebugging("found A section fwb span", theFiltThisjq.text());
                     /* logForDebugging("itsAname",itsAname);
                     logForDebugging("(typeof this.tagName) === 'string'",(typeof this.tagName) === 'string');
                     logForDebugging("this.tagName=='span'",this.tagName);
@@ -570,25 +597,28 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                     return (itsAhref || itsAname);
                 })
                 .filter(function() {
+                                var theFiltThis = this;
+                var theFiltThisjq = $(this);
+
                     logForDebugging("~~~ √490√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
-                    logForDebugging("filtering A section pt II node:", this);
-                    logForDebugging("filtered A section pt II node value is:", this.nodeValue);
+                    logForDebugging("filtering A section pt II node:", theFiltThis);
+                    logForDebugging("filtered A section pt II node value is:", theFiltThis.nodeValue);
                     var theCriteria =
 
-                        (thisActiveElement.tagName == "BODY" ? true : (!!$(this).prop("isContentEditable") == false && $(this).has("[contenteditable]").length == 0)); /* rejects anything with editable descendants */
+                        (thisActiveElement.tagName == "BODY" ? true : (!!theFiltThisjq.prop("isContentEditable") == false && theFiltThisjq.has("[contenteditable]").length == 0)); /* rejects anything with editable descendants */
                     /* was !$(this).prop( "isContentEditable" ) /~ cant use === false because .prop("isContentEditable") === undefined for text nodes ~/ */
                     logForDebugging("the A section filter returns (true for include):",
                         theCriteria
                     );
                     if (theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) {
                         logForDebugging("~~~ √503√ starting 'if ( theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~", "", "ULTRA");
-                        if ((typeof this.href) === "string" && this.href.match(theBadFBURLWords)) {
+                        if ((typeof theFiltThis.href) === "string" && theFiltThis.href.match(theBadFBURLWords)) {
 
-                            logForDebugging("Matched purple href ", this.href.match(theBadFBURLWords));
+                            logForDebugging("Matched purple href ", theFiltThis.href.match(theBadFBURLWords));
 
                         } else {
 
-                            logForDebugging("Matched purple contents ", ("mdelimiter" + $(this).text() + "mdelimiter").match(theBadFBNames));
+                            logForDebugging("Matched purple contents ", ("mdelimiter" + theFiltThisjq.text() + "mdelimiter").match(theBadFBNames));
 
 
                         }
@@ -600,12 +630,14 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                     return theCriteria;
                 });
             logForDebugging("about to walk A leaves in A section:", aWalk);
-
-            aWalk.each(function() {
+   var awalkl=aWalk.length;
+            for (var awalki=0;awalki<awalkl; awalki++) {
+                var awvar=theseNodesForEach[theseNodesForEachi];
+                var awjq=$(awvar)
                 logForDebugging("~~~ √526√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
-                logForDebugging("walking A section leaf:", this[0] || this); /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
-                var theClosest = $(this).closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
-                var theClosestBlock = theClosest.length === 0 ? $(this).closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]' */ ) : theClosest;
+                logForDebugging("walking A section leaf:", awjq[0] || awvar); /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
+                var theClosest = awjq.closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
+                var theClosestBlock = theClosest.length === 0 ? awjq.closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]' */ ) : theClosest;
                 theClosest = theClosest.length === 0 ? theClosestBlock : theClosest;
                 /* sometimes the mutation target is just a text node that changed (like clicking a "more" link on facebook. In that case, see if it's enclosed in one of selectorsToConsiderTogether before just looking for the closest() parent block element. */
                 logForDebugging("theClosestBlock:", theClosestBlock);
@@ -636,7 +668,7 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                 }
                 logForDebugging("added aqua to", theClosest[0] || theClosest); /* don't know why theClosest[0] is sometimes, maybe always, not evaluating. don't care right now. */
                 logForDebugging("~~~~~ √526√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
-            });
+            }
             logForDebugging("done walking A section text leaves", aWalk);
 
             logForDebugging("~~~~~ √296√ ending 'if ( typeof thisTarget.data() === ''object'' && 298 (!thisTarget.data(''scriptprocid'') || 299 thisTarget.data(''scriptprocid'') != sessionID) 300 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
@@ -662,61 +694,75 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                 .addBack("[hiddenByScript=true]:has([contenteditable])");
             if (thisPageIsExempt) {
                 logForDebugging("~~~ √594√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
-                hiddenWalk.each(function() {
+                var hiddenwalkl=hiddenWalk.length;
+            for (var hiddenwalki=0;hiddenwalki<hiddenwalkl; hiddenwalki++)  {
+                var hw=hiddenWalk[hiddenwalki];
+                var hwjq=$(hw);
                     logForDebugging("~~~ √595√ 'function( ) ' ~ ~ ~", "", "ULTRA");
-                    logForDebugging("unhiding text leaf:", this);
+                    logForDebugging("unhiding text leaf:", hw);
 
-                    $(this)
+                    hwjq
                         .css("border", "1px solid blue")
                         .css("background", "#CCCCFF")
                         .css("background", "rgba(225,225,255,.5)")
-                        .attr("style", $(this).data("savedstyle"))
+                        .attr("style", hwjq.data("savedstyle"))
                         .attr("hiddenByScript", "");
 
-                    logForDebugging("added blue to", $(this));
+                    logForDebugging("added blue to", hwjq);
 
-                });
+                }
+
                 logForDebugging("~~~~~ √594√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
             } else {
                 logForDebugging("~~~ √608√ starting 'else ' ~ ~ ~", "", "ULTRA");
-                hiddenWalk.each(function() {
-                    logForDebugging("~~~ √609√ 'function( ) ' ~ ~ ~", "", "ULTRA");
-                    logForDebugging("unhiding text leaf:", this);
-                    $(this).show().attr("hiddenByScript", "");
-                    logForDebugging("added blue to", $(this));
+                   var hiddenwalkl=hiddenWalk.length;
+            for (var hiddenwalki=0;hiddenwalki<hiddenwalkl; hiddenwalki++) {
+                 var hw=hiddenWalk[hiddenwalki];
+                var hwjq=$(hw);
 
-                });
+                    logForDebugging("~~~ √609√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    logForDebugging("unhiding text leaf:",hw);
+                    hwjq.show().attr("hiddenByScript", "");
+                    logForDebugging("added blue to", hwjq);
+
+                }
+
                 logForDebugging("~~~~~ √608√ ending 'else ' ~ ~ ~ ~ ~", "", "ULTRA");
             }
             logForDebugging("~~~~~ √585√ ending 'while backspace key is being hit, and the script jumps in and hides them. */ 586 587 588 /* this isn't the best way to do this, I don't think. Sometimes a hiddenbyscript element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */ if(thisActiveElement.tagName != ''BODY'') ' ~ ~ ~ ~ ~", "", "ULTRA");
         }
 
-        var theSelectorsToAlwaysHide = $(document.body) /*don't use thisTarget -- the selector to always hide can sometimes be in the mutationTarget but not in the addedNodes (UPDATE THIS. USE THE MUTATION.TARGET, NOT THE DOCUMENT.BODY AND SEE IF IT WORKS.*/
+        var theSelectorsToAlwaysHide = docbodyjq /*don't use thisTarget -- the selector to always hide can sometimes be in the mutationTarget but not in the addedNodes (UPDATE THIS. USE THE MUTATION.TARGET, NOT THE DOCUMENT.BODY AND SEE IF IT WORKS.*/
             .find(selectorsToAlwaysHideRegex)
             .not("[hiddenbyscript]");
         //while (theSelectorsToAlwaysHide ) { logForDebugging("~~~ √620√ starting 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~","","ULTRA");
-        theSelectorsToAlwaysHide.each(function() {
+
+        var theSelectorsToAlwaysHidel=theSelectorsToAlwaysHide.length;
+            for (var theSelectorsToAlwaysHidei=0;theSelectorsToAlwaysHidei<theSelectorsToAlwaysHidel; theSelectorsToAlwaysHidei++)  {
             logForDebugging("~~~ √621√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
             /* we do this _after_ seaching for badwords so selectortoalwayshide that use [hiddenbyscript] will get catch things that were just hidden */
+                var tstah = theSelectorsToAlwaysHide[theSelectorsToAlwaysHidei];
+                var tsjq = $(tstah);
 
             if (thisPageIsExempt) {
                 logForDebugging("~~~ √624√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
-                $(this)
+                tsjq
                     .css("border", "1px solid orange")
                     .css("background", "rgba(255,240,225,.5")
                     .attr("hiddenByScript", "true");
-                logForDebugging("Added orange to", $(this));
+                logForDebugging("Added orange to", tsjq);
 
             } else {
                 logForDebugging("~~~ √630√ 'else ' ~ ~ ~", "", "ULTRA");
-                $(this).hide().attr("hiddenByScript", "true");
-                logForDebugging("Added orange to", $(this));
+                tsjq.hide().attr("hiddenByScript", "true");
+                logForDebugging("Added orange to", tsjq);
 
             }
 
-            logForDebugging("added orange to", this);
+            logForDebugging("added orange to", tstah);
             logForDebugging("~~~~~ √621√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
-        });
+        }
+
         // theSelectorsToAlwaysHide =thisTarget.find(selectorsToAlwaysHide.replace(/\|/g, ",")).not("[hiddenbyscript]");
         //logForDebugging("~~~~~ √620√ ending 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~ ~ ~","","ULTRA");}
         if (!!thisTarget.length && thisTarget[0].tagName != "BODY") {
@@ -730,7 +776,7 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
     } //end for loop
     observerEnable = true;
     logForDebugging("~~~~~ √270√ ending 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~ ~ ~", "", "ULTRA");
-} //end main()
+} /*end visibility check */ }  //end main()
 
 //*************** BEGIN GLOBAL SCOPE ****************//
 
@@ -758,9 +804,10 @@ var d = new Date();
 
 function wcSetAttributeSafely(node, attribute, value) {
     logForDebugging("~~~ √656√ starting 'function wcSetAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
-    if (typeof $(node).data() === "object") {
+    var nodejq=$(node);
+    if (typeof nodejq.data() === "object") {
         logForDebugging("~~~ √657√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
-        $(node).data(attribute, value);
+        nodejq.data(attribute, value);
 
     } else if (node.nodeType == 3) {
         logForDebugging("~~~ √659√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
@@ -774,12 +821,14 @@ function wcSetAttributeSafely(node, attribute, value) {
 }
 
 function wcSetDebuggingAttributeSafely(node, attribute, value) {
+    var nodejq=$(node);
+
     logForDebugging("~~~ √669√ starting 'function wcSetDebuggingAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
     if (RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) {
         logForDebugging("~~~ √670√ starting 'if ( RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) ' ~ ~ ~", "", "ULTRA");
-        if (typeof $(node).data() === "object") {
+        if (typeof nodejq.data() === "object") {
             logForDebugging("~~~ √671√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
-            $(node).data(attribute, value);
+            nodejq.data(attribute, value);
 
         } else if (node.nodeType == 3) {
             logForDebugging("~~~ √673√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
@@ -1102,6 +1151,8 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
 
             logForDebugging("About to forEach theNodes", theNodes);
             theNodes.forEach(function(mutation) {
+            var mutationtarget=mutation.target;
+            var mutationtargetjq=$(mutationtarget);
                 logForDebugging("~~~ √989√ starting 'function( mutation) ' ~ ~ ~", "", "ULTRA");
 
                 logForDebugging("forEach this node of TheNodes", mutation);
@@ -1109,31 +1160,33 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                           observerEnable = false;
                     logForDebugging("~~~ √992√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
-                    mutation.target.style =
+                    mutationtarget.style =
                         "border: 5px dotted rgba(200,200,200,1) !important; background:rgb(200,200,200) !important;" +
-                        mutation.target.style;
-                    $(mutation.target).data("highlighted", true);
+                        mutationtarget.style;
+
+                    mutationtargetjq.data("highlighted", true);
                     observerEnable = true;
 
                 }
                 if(CONSOLE_DEBUGGING_MESSAGES_ON != false) {
-                logForDebugging("OBSERVED: 1. testing mutation: " + $(mutation.target).text().substr(0, 50), mutation, "observer");
-                logForDebugging("OBSERVED: 2. testing mutation target tagname: " + $(mutation.target).text().substr(0, 50), mutation.target.tagName, "observer");
-                logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + $(mutation.target).text().substr(0, 50), mutation.target.innerHTML, "observer");
+                logForDebugging("OBSERVED: 1. testing mutation: " + mutationtargetjq.text().substr(0, 50), mutation, "observer");
+                logForDebugging("OBSERVED: 2. testing mutation target tagname: " + mutationtargetjq.text().substr(0, 50), mutationtarget.tagName, "observer");
+                logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + mutationtargetjq.text().substr(0, 50), mutationtarget.innerHTML, "observer");
 }
-                if ((mutation.target.tagName != "BODY" || $(document.body).data("firstrun") != thisSessionID) && mutation.type == "childList" && (mutation.addedNodes.length>0 ? !mutation.addedNodes[0].isContentEditable:false /* need ternary operator to avoid 'undefined' */)) {
-                    logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || $(document.body).data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutation.target.tagName, "ULTRA");
-                    logForDebugging("~~~ √1006√   $(document.body).data(''firstrun'') = ",  $(document.body).data("firstrun") , "ULTRA");
+                if ((mutationtarget.tagName != "BODY" || docbodyjq.data("firstrun") != thisSessionID) && mutation.type == "childList" && (mutation.addedNodes.length>0 ? !mutation.addedNodes[0].isContentEditable:false /* need ternary operator to avoid 'undefined' */)) {
+                    logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutationtarget.tagName, "ULTRA");
+                    logForDebugging("~~~ √1006√   docbodyjq.data(''firstrun'') = ",  docbodyjq.data("firstrun") , "ULTRA");
                     logForDebugging("~~~ √1006√ thisSessionID = ", thisSessionID , "ULTRA");
                     /* just added these 7/4/18: && mutation.type == "childList" && !mutation.addedNodes[0].isContentEditable - can remove from nested conditional below if works for a while */
                     logForDebugging("~~~ √1006√ mutation = ", mutation , "ULTRA");
                     //just process the changed bits, not the whole body more than once per session, ok?
-                    $(document.body).data("firstrun", thisSessionID);
+                    docbodyjq.data("firstrun", thisSessionID);
                     if(CONSOLE_DEBUGGING_MESSAGES_ON != false) {
                     logForDebugging("Passing as mutation for session ID " + thisSessionID + ":", mutation);
-                    logForDebugging("raw innerHTML to check:", mutation.target.innerHTML);}
-if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) {CONSOLE_DEBUGGING_MESSAGES_ON=true; logForDebugging("Turning logging on, found: ",TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE); }
-                    var theMutTargetText = (mutation.target.innerHTML || "").replace(/\<(IMG[^>]*)>/gi, " $1 ").replace(/\<[^>]*>/gi, " "); //keep the image tags for the alt attributes, and replace all other html with spaces to separate text blocks.
+                    logForDebugging("raw innerHTML to check:", mutationtarget.innerHTML);}
+                    if (TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE != "") { /* next line was expensive due to match() */
+if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) {CONSOLE_DEBUGGING_MESSAGES_ON=true; logForDebugging("Turning logging on, found: ",TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE); } }
+                    var theMutTargetText = (mutationtarget.innerHTML || "").replace(/\<(IMG[^>]*)>/gi, " $1 ").replace(/\<[^>]*>/gi, " "); //keep the image tags for the alt attributes, and replace all other html with spaces to separate text blocks.
                     logForDebugging("About to create theseMatches, theMutTargetText is:", theMutTargetText);
 
                     var theseMatches = theMutTargetText.match(theBadWordsAndFBNames);
@@ -1146,26 +1199,26 @@ if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) 
                         logForDebugging("About to create theNewMatches from theseMatches:", theseMatches);
                         var theNewMatches = new RegExp(theseMatches.join("THEPIPEGOESHERE372333319").replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/THEPIPEGOESHERE372333319/gi, '|'), "gi"); //the replace is to sanitize string... if "]NRA[" is in the test of the page, this RegExp will choke without sanitization
 
-                        if (!$(document.body).data("FirstMutation")) {
-                            logForDebugging("~~~ √1042√ 'if ( !$(document.body).data(''FirstMutation'')) ' ~ ~ ~", "We're in the condition to check the BODY on the first pass", "ULTRA");
+                        if (!docbodyjq.data("FirstMutation")) {
+                            logForDebugging("~~~ √1042√ 'if ( !docbodyjq.data(''FirstMutation'')) ' ~ ~ ~", "We're in the condition to check the BODY on the first pass", "ULTRA");
                             /* on the very first time this is called on a page, use the whole body to make sure everything gets checked once. */
                             logForDebugging("First Mutation for page. passing Body.");
-                            $(document.body).data("FirstMutation", true);
+                            docbodyjq.data("FirstMutation", true);
                             /* debugger; */
-                            mainScript(-1, 5000, theDummy, thisSessionID, theNewMatches);
+                           mainScript(-1, 5000, theDummy, thisSessionID, theNewMatches);
                             addUnblockLink( /*theCatch*/ "x"); /* this needs to run every time main is called - pages such as Feedly.com/general seem to remove the entire body and replace it,so only adding this once means it disappears. */
 
 
                         } else {
-                            logForDebugging("Not running initial scan of body because !$(document.body).data('FirstMutation') is ", !$(document.body).data("FirstMutation"));
+                            logForDebugging("Not running initial scan of body because !docbodyjq.data('FirstMutation') is ", !docbodyjq.data("FirstMutation"));
                         }
                         if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
                             logForDebugging("~~~ √1053√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
                             observerEnable = false; /* debugger; */
-                            mutation.target.style =
+                            mutationtarget.style =
                                 "border: 5px solid rgba(100,100,100,1) !important; background:rgb(0100,100,100) !important;" +
-                                mutation.target.style;
-                            $(mutation.target).data("highlighted", true);
+                                mutationtarget.style;
+                           mutationtargetjq.data("highlighted", true);
                             observerEnable = true;
 
                         }
@@ -1209,10 +1262,11 @@ if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) 
 
                     }
                     /* $("html,body").css("cursor", "auto"); dunno why i had this */
-                    logForDebugging("~~~~~ √1006√ ending 'if ( mutation.target.tagName != ''BODY'' || $(document.body).data(''firstrun'') != thisSessionID ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    logForDebugging("~~~~~ √1006√ ending 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~ ~ ~", "", "ULTRA");
                 }
                 logForDebugging("~~~~~ √989√ ending 'function( mutation) ' ~ ~ ~ ~ ~", "", "ULTRA");
             });
+            /* end foreach (mutation) */
             //restart observer
             /* document.mkObserverFlag = undefined; */
             observer.observe(document.body, {
@@ -1266,324 +1320,4 @@ if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) 
     logForDebugging("~~~ √1116√ 'else ' ~ ~ ~", "", "ULTRA");
     logForDebugging("page matched exemptions, didn't run");
 
-}
-
-function debugout() {
-	/* NOTE: Buggy. Currently not used, keeping to explore later. */
-	var self = this;
-
-	// OPTIONS
-	self.realTimeLoggingOn = true; // log in real time (forwards to console.log)
-	self.useTimestamps = true; // insert a timestamp in front of each log
-	self.useLocalStorage = false; // store the output using window.localStorage() and continuously add to the same log each session
-	self.recordLogs = true; // set to false after you're done debugging to avoid the log eating up memory
-	self.autoTrim = false; // to avoid the log eating up potentially endless memory
-	self.maxLines = 2500; // if autoTrim is true, this many most recent lines are saved
-	self.tailNumLines = 100; // how many lines tail() will retrieve
-	self.logFilename = 'debugout.txt'; // filename of log downloaded with downloadLog()
-	self.maxDepth = 2; // max recursion depth for logged objects
-
-	// vars
-	self.depth = 0;
-	self.parentSizes = [0];
-	self.currentResult = '';
-	self.startTime = new Date();
-	self.output = '';
-
-	this.version = function() { return '0.5.0' }
-
-	/*
-		USER METHODS
-	*/
-	this.getLog = function() {
-		var retrievalTime = new Date();
-		// if recording is off, so dev knows why they don't have any logs
-		if (!self.recordLogs) {
-			self.log('[debugout.js] log recording is off.');
-		}
-		// if using local storage, get values
-		if (self.useLocalStorage) {
-			var saved = window.localStorage.getItem('debugout.js');
-			if (saved) {
-				saved = JSON.parse(saved);
-				self.startTime = new Date(saved.startTime);
-				self.output = saved.log;
-				retrievalTime = new Date(saved.lastLog);
-			}
-		}
-		return self.output
-			+ '\n---- Log retrieved: '+retrievalTime+' ----\n'
-			+ self.formatSessionDuration(self.startTime, retrievalTime);
-	}
-	// accepts optional number or uses the default for number of lines
-	this.tail = function(fnumLines) {
-		var numLines = fnumLines || self.tailLines;
-		return self.trimLog(self.getLog(), numLines);
-	}
-	// accepts a string to search for
-	this.search = function(string) {
-		var lines = self.output.split('\n');
-		var rgx = new RegExp(string);
-		var matched = [];
-		// can't use a simple Array.prototype.filter() here
-		// because we need to add the line number
-		for (var i = 0; i < lines.length; i++) {
-			var addr = '['+i+'] ';
-			if (lines[i].match(rgx)) {
-				matched.push(addr + lines[i]);
-			}
-		}
-		var result = matched.join('\n');
-		if (result.length == 0) result = 'Nothing found for "'+string+'".';
-		return result
-	}
-	// accepts the starting line and how many lines after the starting line you want
-	this.getSlice = function(lineNumber, numLines) {
-		var lines = self.output.split('\n');
-		var segment = lines.slice(lineNumber, lineNumber + numLines);
-		return segment.join('\n');
-	}
-	// immediately downloads the log - for desktop browser use
-	this.downloadLog = function() {
-	    var file = "data:text/plain;charset=utf-8,";
-	    var logFile = self.getLog();
-	    var encoded = encodeURIComponent(logFile);
-	    file += encoded;
-	    var a = document.createElement('a');
-	    a.href = file;
-	    a.target   = '_blank';
-	    a.download = self.logFilename;
-	    document.body.appendChild(a);
-	    a.click();
-	    a.remove();
-	}
-	// clears the log
-	this.clear = function() {
-		var clearTime = new Date();
-		self.output = '---- Log cleared: '+clearTime+' ----\n';
-		if (self.useLocalStorage) {
-			// local storage
-			var saveObject = {
-				startTime: self.startTime,
-				log: self.output,
-				lastLog: clearTime
-			}
-			saveObject = JSON.stringify(saveObject);
-			window.localStorage.setItem('debugout.js', saveObject);
-		}
-		if (self.realTimeLoggingOn) console.log('[debugout.js] clear()');
-	}
-	// records a log
-	this.log = function(obj) {
-		// log in real time
-		if (self.realTimeLoggingOn) console.log(obj);
-		// record log
-		var type = self.determineType(obj);
-		if (type != null && self.recordLogs) {
-			var addition = self.formatType(type, obj);
-			// timestamp, formatted for brevity
-			if (self.useTimestamps) {
-				var logTime = new Date();
-				self.output += self.formatTimestamp(logTime);
-			}
-			self.output += addition+'\n';
-			if (self.autoTrim) self.output = self.trimLog(self.output, self.maxLines);
-			// local storage
-			if (self.useLocalStorage) {
-				var last = new Date();
-				var saveObject = {
-					startTime: self.startTime,
-					log: self.output,
-					lastLog: last
-				}
-				saveObject = JSON.stringify(saveObject);
-				window.localStorage.setItem('debugout.js', saveObject);
-			}
-		}
-		self.depth = 0;
-		self.parentSizes = [0];
-		self.currentResult = '';
-	}
-	/*
-		METHODS FOR CONSTRUCTING THE LOG
-	*/
-
-	// like typeof but classifies objects of type 'object'
-	// kept separate from formatType() so you can use at your convenience!
-	this.determineType = function(object) {
-		if (object != null) {
-			var typeResult;
-			var type = typeof object;
-			if (type == 'object') {
-				var len = object.length;
-				if (len == null) {
-					if (typeof object.getTime == 'function') {
-						typeResult = 'Date';
-					}
-					else if (typeof object.test == 'function') {
-						typeResult = 'RegExp';
-					}
-					else {
-						typeResult = 'Object';
-					}
-				} else {
-					typeResult = 'Array';
-				}
-			} else {
-				typeResult = type;
-			}
-			return typeResult;
-		} else {
-			return null;
-		}
-	}
-	// format type accordingly, recursively if necessary
-	this.formatType = function(type, obj) {
-		if (self.maxDepth && self.depth >= self.maxDepth) {
-			return '... (max-depth reached)';
-		}
-
-		switch(type) {
-			case 'Object' :
-				self.currentResult += '{\n';
-				self.depth++;
-				self.parentSizes.push(self.objectSize(obj));
-				var i = 0;
-				for (var prop in obj) {
-					self.currentResult += self.indentsForDepth(self.depth);
-					self.currentResult += prop + ': ';
-					var subtype = self.determineType(obj[prop]);
-					var subresult = self.formatType(subtype, obj[prop]);
-					if (subresult) {
-						self.currentResult += subresult;
-						if (i != self.parentSizes[self.depth]-1) self.currentResult += ',';
-						self.currentResult += '\n';
-					} else {
-						if (i != self.parentSizes[self.depth]-1) self.currentResult += ',';
-						self.currentResult += '\n';
-					}
-					i++;
-				}
-				self.depth--;
-				self.parentSizes.pop();
-				self.currentResult += self.indentsForDepth(self.depth);
-				self.currentResult += '}';
-				if (self.depth == 0) return self.currentResult;
-				break;
-			case 'Array' :
-				self.currentResult += '[';
-				self.depth++;
-				self.parentSizes.push(obj.length);
-				for (var i = 0; i < obj.length; i++) {
-					var subtype = self.determineType(obj[i]);
-					if (subtype == 'Object' || subtype == 'Array') self.currentResult += '\n' + self.indentsForDepth(self.depth);
-					var subresult = self.formatType(subtype, obj[i]);
-					if (subresult) {
-						self.currentResult += subresult;
-						if (i != self.parentSizes[self.depth]-1) self.currentResult += ', ';
-						if (subtype == 'Array') self.currentResult += '\n';
-					} else {
-						if (i != self.parentSizes[self.depth]-1) self.currentResult += ', ';
-						if (subtype != 'Object') self.currentResult += '\n';
-						else if (i == self.parentSizes[self.depth]-1) self.currentResult += '\n';
-					}
-				}
-				self.depth--;
-				self.parentSizes.pop();
-				self.currentResult += ']';
-				if (self.depth == 0) return self.currentResult;
-				break;
-			case 'function' :
-				obj += '';
-				var lines = obj.split('\n');
-				for (var i = 0; i < lines.length; i++) {
-					if (lines[i].match(/\}/)) self.depth--;
-					self.currentResult += self.indentsForDepth(self.depth);
-					if (lines[i].match(/\{/)) self.depth++;
-					self.currentResult += lines[i] + '\n';
-				}
-				return self.currentResult;
-				break;
-			case 'RegExp' :
-				return '/'+obj.source+'/';
-				break;
-			case 'Date' :
-			case 'string' :
-				if (self.depth > 0 || obj.length == 0) {
-					return '"'+obj+'"';
-				} else {
-					return obj;
-				}
-			case 'boolean' :
-				if (obj) return 'true';
-				else return 'false';
-			case 'number' :
-				return obj+'';
-				break;
-		}
-	}
-	this.indentsForDepth = function(depth) {
-		var str = '';
-		for (var i = 0; i < depth; i++) {
-			str += '\t';
-		}
-		return str;
-	}
-	this.trimLog = function(log, maxLines) {
-		var lines = log.split('\n');
-		if (lines.length > maxLines) {
-			lines = lines.slice(lines.length - maxLines);
-		}
-		return lines.join('\n');
-	}
-	this.lines = function() {
-		return self.output.split('\n').length;
-	}
-	// calculate testing time
-	this.formatSessionDuration = function(startTime, endTime) {
-		var msec = endTime - startTime;
-		var hh = Math.floor(msec / 1000 / 60 / 60);
-		var hrs = ('0' + hh).slice(-2);
-		msec -= hh * 1000 * 60 * 60;
-		var mm = Math.floor(msec / 1000 / 60);
-		var mins = ('0' + mm).slice(-2);
-		msec -= mm * 1000 * 60;
-		var ss = Math.floor(msec / 1000);
-		var secs = ('0' + ss).slice(-2);
-		msec -= ss * 1000;
-		return '---- Session duration: '+hrs+':'+mins+':'+secs+' ----'
-	}
-	this.formatTimestamp = function(timestamp) {
-		var year = timestamp.getFullYear();
-		var date = timestamp.getDate();
-		var month = ('0' + (timestamp.getMonth() +1)).slice(-2);
-		var hrs = Number(timestamp.getHours());
-		var mins = ('0' + timestamp.getMinutes()).slice(-2);
-		var secs = ('0' + timestamp.getSeconds()).slice(-2);
-		return '['+ year + '-' + month + '-' + date + ' ' + hrs + ':' + mins + ':'+secs + ']: ';
-	}
-	this.objectSize = function(obj) {
-	    var size = 0, key;
-	    for (key in obj) {
-	        if (obj.hasOwnProperty(key)) size++;
-	    }
-	    return size;
-	}
-
-	/*
-		START/RESUME LOG
-	*/
-	if (self.useLocalStorage) {
-		var saved = window.localStorage.getItem('debugout.js');
-		if (saved) {
-			saved = JSON.parse(saved);
-			self.output = saved.log;
-			var start = new Date(saved.startTime);
-			var end = new Date(saved.lastLog);
-			self.output += '\n---- Session end: '+saved.lastLog+' ----\n';
-			self.output += self.formatSessionDuration(start, end);
-			self.output += '\n\n';
-		}
-	}
-	self.output += '---- Session started: '+self.startTime+' ----\n\n';
 }
