@@ -4,6 +4,6 @@ WebCooler removes hotbutton content from the web to cool it down before it makes
 WebCooler goes great with GreaseMonkey, TamperMonkey, or your favorite monkey or non-monkey browser userscript manager. 
 
 # I AM
-Michael E. Kupietz, FileMaker Pro Consultant    
+Michael E. Kupietz, creator of custom solutions for FileMaker Pro ◊ Web ◊ Tradingview Pine Script    
 https://www.kupietz.com    
 github.com/kupietools
