@@ -1,10 +1,9 @@
 // ==UserScript==
 // @name WebCooler
 // @namespace http://www.kupietz.com/WebCooler
-// @description	Version 3.6: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
+// @description	Version 3.6.1: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
 // @version 3.6
-// @match http://*
-// @match https://*
+// @match *://*/*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://code.jquery.com/jquery-3.3.1.slim.min.js
 // @grant GM_getValue
@@ -31,6 +30,7 @@
         along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Version History:
+    3.6.1 fix regression error where 3.6 wasn't matching any pages, add a few new classes to block features on Google search results for individual I want to disappear.
     3.6 improved performance by adding site specific parents to remove only if a child is hidden rather than relying on selectors to always hide and a horribly inefficient :has() selector
     3.5.1 Append comments in head showing matches.
     3.5 Tossed my cookies. Now using GM_setValue and GM_getValue because some sites were deleting my cookies on reload.
@@ -115,7 +115,7 @@ var siteSpecificBadWords = {
 /*ok, this is really dumb, but I have some personal sites (social media, etc) I don't want to publicly associate myself with. */
 /* So, since I post this script publicly, I created the StupidHash function (see below) that inserts a wchash attribute into */
 /* the body of each page. You can put the page's wchash here instead of the url. */
-var exemptSites = "fivethirtyeight\\.com$|H184.74811863139513|18297985\.81780946|139514\.47879774484|H1269643\.1719910516|78882\.83274254062|\\.gov[/?:]|\\.gov$|H784\.1647977343692|H2603\.8344187906177"; //URL or wchash or wchashhost. NEED \\ to match periods, otherwise periods AND everything else matches in urls. fivethirtyeight\.com$ would match fivethirtyeightacom$. Doesn't matter as much in stupidhashes, as not likely to have two of them identical except for a character in place of the dot.
+var exemptSites = "github\\.com|fivethirtyeight\\.com$|H184.74811863139513|18297985\.81780946|139514\.47879774484|H1269643\.1719910516|78882\.83274254062|\\.gov[/?:]|\\.gov$|H784\.1647977343692|H2603\.8344187906177"; //URL or wchash or wchashhost. NEED \\ to match periods, otherwise periods AND everything else matches in urls. fivethirtyeight\.com$ would match fivethirtyeightacom$. Doesn't matter as much in stupidhashes, as not likely to have two of them identical except for a character in place of the dot.
 /* 78882.83274254062 = Dave M */
 /* Now, some useful definitions for the below sections: */
 //var fb_OutermostWhiteBox = "div._4-u2"; /*Does this ever change? We'll see. */
@@ -132,7 +132,8 @@ var siteSpecificSelectorsToConsiderTogether = {
     "twitter.com$": 'div[aria-label="Timeline: Conversation"]>div>div|div[aria-label="Timeline: Tweet"]>div>div|div.TweetWithPivotModule|div.MomentCapsuleSummary--card|.TwitterCard|.QuoteTweet|.CardContent|li[data-item-type="tweet"]|.ProfileCard|li.trend-item|.js-account-summary.account-summary.js-actionable-user',
     /* removed twitter:'.js-stream-item.stream-item' because was hiding entire 'tweets you might have missed' if one matched */
     "reddit.com$": '.noncollapsed|.was-comment|.recipient|.message|div.comment ',
-    "google.com$": "div.g|div._oip._Czh|g-section-with-header|div._NId>div.srg>div.g",
+    "google.com$": "div.g|div._oip._Czh|g-section-with-header|div._NId>div.srg>div.g|div.AJLUJb > div|div.sATSHe| div.XqFnDf[data-hveid='CAYQDQ']>",
+	/* div.AJLUJb > div is "related searches", div[class='XqFnDf'][data-hveid='CAYQDQ'] appears to be top-of-page "onebox", div.sATSHe is "About" box in right column */
     "facebook.com$": 'div._4eeo|div[aria-label="Comment"]|article._55wo|div[role=article]|li.jewelItemNew|div._3soj|div.UFIRow.UFIComment|div._1yt|li._5my2|li._58rc|div._4-u3|' + fb_postContent,
     /* li._5my2 is 'trending' row. div.div._4-u3 is a "related article" beneath a share.
     li._58rc is a 'related content' box. div._1yt is a search result post */
@@ -1918,7 +1919,7 @@ if(!document.body.hasAttribute("wcHashHost")) {
 }
 
 async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMatches) {
-    
+
     logForDebugging("~~~ √270√ starting 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~", "", "ULTRA");
     /* big stuff happens here */
     logForDebugging("Main running. Mutation:", mutation);
