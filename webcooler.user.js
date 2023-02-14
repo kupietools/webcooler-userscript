@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name WebCooler
 // @namespace http://www.kupietz.com/WebCooler
-// @description	Version 3.6.1: Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
-// @version 3.6
+// @description	Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
+// @version 3.7
 // @match *://*/*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://code.jquery.com/jquery-3.3.1.slim.min.js
@@ -30,6 +30,7 @@
         along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Version History:
+    3.7 consider text content of span tags with multiple child nodes as a whole, to catch <span>bad <em>words</em></span>, like Google sometimes does within search results
     3.6.1 fix regression error where 3.6 wasn't matching any pages, add a few new classes to block features on Google search results for individual I want to disappear.
     3.6 improved performance by adding site specific parents to remove only if a child is hidden rather than relying on selectors to always hide and a horribly inefficient :has() selector
     3.5.1 Append comments in head showing matches.
@@ -56,7 +57,7 @@ var thisScriptHiddenAttribute = "hiddenbyuserscript"+ GM.info.script.name.replac
 
 /* switches & debugging options */
 var observerEnable = true; //enable mutation observer
-var CONSOLE_DEBUGGING_MESSAGES_ON = false ;//new RegExp(/normal|ultra|greencrit|observer/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
+var CONSOLE_DEBUGGING_MESSAGES_ON = true ;//new RegExp(/normal|ultra|greencrit|observer/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
 /*** CAUTION!!! CONSOLE_DEBUGGING_MESSAGES_ON != false is a HUGE performance hit! It completely broke Twitter for me tonight. ***/
 /*** TURN IT OFF WHEN YOU ARE DONE DEBUGGING. ***/
 /******* Maybe add a visual indicator if debugging is on. Also add a visual indicator if somehting has been removed... like only add exempt link then ***/
@@ -65,7 +66,7 @@ var CONSOLE_MESSAGES_ADDED_TO_HEAD = true; //add messages to document head, for 
 var HILIGHT_ONLY = false; //consider all pages exempt and hilite rather than remove. turn this on if the damn cookie system breaks again
 var HILIGHT_ELEMENTS_BEING_PROCESSED = false; //visual cue as each page element is processed?
 var RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED = false; //Do I even use this anymore? I dunno
-var MAX_NUMBER_OF_CALLS_PER_PAGE = 1000000; //prevent endless loops. Set to very high number for actual production use.
+var MAX_NUMBER_OF_CALLS_PER_PAGE = 100000000; //prevent endless loops. Set to very high number for actual production use.
 var BLOCK_ONLY_IMAGES_CONTAINING_ONLY_TEXT = true; //hide tweet screencaps & probably some memes on FB
 
 logForDebugging("Starting - logging ", CONSOLE_DEBUGGING_MESSAGES_ON);
@@ -84,7 +85,7 @@ this.$ = this.jQuery = jQuery.noConflict(true);
 /* the below all are regexps. BadWords match text, ones marked as selectors match jquery selectors. */
 
 var globalBadWords =
-    "\\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump|\\belon\\b|parler|\\bwoke\\b|MSNBC|taylor greene|\\bbiden|kamala|boebert|cambridge *analytica|(keep|make) america great|de ?santis|AOC|huckabee sanders|bader ginsburg|sarah sanders|Ocasio-Cortez|theapricity|Breitbart|proud boys|roger stone|apricity|jordan[ Bb.]*peterson|mansplain|bolsonaro|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|fake news|roseanne *barr|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Za-z]NRA[^A-Za-z]|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|political[-lly ]*correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|kanye|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
+    "\\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump|Elon ?Musk|\\bElon\\b|SpaceX|parler|\\bwoke\\b|MSNBC|taylor greene|\\bbiden|kamala|boebert|cambridge *analytica|(keep|make) america great|de ?santis|AOC|huckabee sanders|bader ginsburg|sarah sanders|Ocasio-Cortez|theapricity|Breitbart|proud boys|roger stone|apricity|jordan[ Bb.]*peterson|mansplain|bolsonaro|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|fake news|roseanne *barr|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Za-z]NRA[^A-Za-z]|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|political[-lly ]*correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|kanye|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
 /* Please note, my personal collection of badWords is selected not by political ideology, but by what seems to attract either the most heated or the most egregiously stupid comments and content online, regardless of political slant. Any apparent political alignment is strictly a 'shoe fits' situation. Also includes a couple of what I think are just totally biased and unreliable propaganda sites and commentators on both ends of the spectrum. */
 /* \\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump proven effective at blocking trump but not "strumpet" */
 var selectorsToConsiderTogether =
@@ -132,8 +133,11 @@ var siteSpecificSelectorsToConsiderTogether = {
     "twitter.com$": 'div[aria-label="Timeline: Conversation"]>div>div|div[aria-label="Timeline: Tweet"]>div>div|div.TweetWithPivotModule|div.MomentCapsuleSummary--card|.TwitterCard|.QuoteTweet|.CardContent|li[data-item-type="tweet"]|.ProfileCard|li.trend-item|.js-account-summary.account-summary.js-actionable-user',
     /* removed twitter:'.js-stream-item.stream-item' because was hiding entire 'tweets you might have missed' if one matched */
     "reddit.com$": '.noncollapsed|.was-comment|.recipient|.message|div.comment ',
-    "google.com$": "div.g|div._oip._Czh|g-section-with-header|div._NId>div.srg>div.g|div.AJLUJb > div|div.sATSHe| div.XqFnDf[data-hveid='CAYQDQ']>",
-	/* div.AJLUJb > div is "related searches", div[class='XqFnDf'][data-hveid='CAYQDQ'] appears to be top-of-page "onebox", div.sATSHe is "About" box in right column */
+    "google.com$": "div.unNqGf|div[jsname='yEVEwb']|explore-desktop-accordion|div.kp-wholepage.ss6qqb.u7yw9.zLsiYe.mnr-c.UBoxCb.kp-wholepage-osrp.Jb0Zif.EyBRub|div.RzdJxc|div.Kot7x|div.Ow4Ord|div.g|div._oip._Czh|g-section-with-header|div._NId>div.srg>div.g|div.AJLUJb > div|div.sATSHe| div.XqFnDf[data-hveid='CAYQDQ']>",
+	/* div.kp-wholepage.ss6qqb.u7yw9.zLsiYe.mnr-c.UBoxCb.kp-wholepage-osrp.Jb0Zif.EyBRub is a "knowledge panel,
+    div.RzdJxc is video result | div.AJLUJb > div is "related searches", div.unNqGf is "+" button across top,
+    div[class='XqFnDf'][data-hveid='CAYQDQ'] appears to be top-of-page "onebox",
+    div.sATSHe is "About" box in right column, div[jsname='yEVEwb'] is "people also ask" */
     "facebook.com$": 'div._4eeo|div[aria-label="Comment"]|article._55wo|div[role=article]|li.jewelItemNew|div._3soj|div.UFIRow.UFIComment|div._1yt|li._5my2|li._58rc|div._4-u3|' + fb_postContent,
     /* li._5my2 is 'trending' row. div.div._4-u3 is a "related article" beneath a share.
     li._58rc is a 'related content' box. div._1yt is a search result post */
@@ -2056,10 +2060,11 @@ var tn=theseNodesForEach[theseNodesForEachi];
                 .find(':not("iframe,script,style")').addBack(':visible:not("iframe,script,style")')
                 .contents() /* like children() but also includes text and comment nodes */
                 .filter(function() {
-                     return (this.nodeType === 3);
+                     return ((this.nodeType === 3) || (this.tagName=="SPAN" && this.children.length > 1));
+                    /* we need to also catch <span> bad <em>word</em></span>, so we'll assume everything in span tags is text and should be considered together */
                 })
                 .filter(function() {
-                var theFiltThis=this;
+                var theFiltThis=(this.nodeType === 3)?this:this.text(); /* if not 3, it's a span returned by the filter just above*/
                 var theFiltThisjq=$(this);
                     logForDebugging("~~~ √372√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
                     logForDebugging("filtering node:", theFiltThis, "greenCrit");
