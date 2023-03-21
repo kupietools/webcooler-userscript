@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name WebCooler
 // @namespace http://www.kupietz.com/WebCooler
-// @description	Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has been finally folder to your desire to stay sane.
-// @version 3.8
+// @description	Cools down my web experience by hiding content that tends to make me hot under the collar. For when your desire to be informed has finally been overcome by your desire to stay sane.
+// @version 3.10
 // @match *://*/*
 // @require https://gist.githubusercontent.com/arantius/3123124/raw/grant-none-shim.js
 // @require https://code.jquery.com/jquery-3.3.1.slim.min.js
@@ -30,7 +30,9 @@
         along with this program. If not, see <http://www.gnu.org/licenses/>.
 
     Version History:
-    3.8 Somewhere along the way a few sections of code got randomly duplicated, cleaned it up 
+    3.10 add "!CONSOLE_DEBUGGING_MESSAGES_ON ||" to prevent anything from even log values from even evaluating if logging is off, get rid of json.stringify, was causing errors with circular objects and adding a replacer function to fix them made it more complicated. Also add some new terms to keep up with changes in parent object hierarchy in facebook comments.
+    3.9 Put badwords filter first when scanning tree... only consider trees at all if they contain badwords
+    3.8 Somewhere along the way a few sections of code got randomly duplicated, cleaned it up
     3.7 consider text content of span tags with multiple child nodes as a whole, to catch <span>bad <em>words</em></span>, like Google sometimes does within search results
     3.6.1 fix regression error where 3.6 wasn't matching any pages, add a few new classes to block features on Google search results for individual I want to disappear.
     3.6 improved performance by adding site specific parents to remove only if a child is hidden rather than relying on selectors to always hide and a horribly inefficient :has() selector
@@ -58,7 +60,7 @@ var thisScriptHiddenAttribute = "hiddenbyuserscript"+ GM.info.script.name.replac
 
 /* switches & debugging options */
 var observerEnable = true; //enable mutation observer
-var CONSOLE_DEBUGGING_MESSAGES_ON = true ;//new RegExp(/normal|ultra|greencrit|observer/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
+var CONSOLE_DEBUGGING_MESSAGES_ON = false ;//new RegExp(/normal|ultra|greencrit|observer/,"gi");//true; //log debug messages? true|false|normal(non-categorized)|new RegExp("logClass1|logClass2|logClass3")
 /*** CAUTION!!! CONSOLE_DEBUGGING_MESSAGES_ON != false is a HUGE performance hit! It completely broke Twitter for me tonight. ***/
 /*** TURN IT OFF WHEN YOU ARE DONE DEBUGGING. ***/
 /******* Maybe add a visual indicator if debugging is on. Also add a visual indicator if somehting has been removed... like only add exempt link then ***/
@@ -70,7 +72,7 @@ var RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED = false; //Do
 var MAX_NUMBER_OF_CALLS_PER_PAGE = 100000000; //prevent endless loops. Set to very high number for actual production use.
 var BLOCK_ONLY_IMAGES_CONTAINING_ONLY_TEXT = true; //hide tweet screencaps & probably some memes on FB
 
-logForDebugging("Starting - logging ", CONSOLE_DEBUGGING_MESSAGES_ON);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Starting - logging ", CONSOLE_DEBUGGING_MESSAGES_ON);
 
 this.$ = this.jQuery = jQuery.noConflict(true);
 /* necessary for compatibility, according to https://wiki.greasespot.net/@grant */
@@ -86,7 +88,7 @@ this.$ = this.jQuery = jQuery.noConflict(true);
 /* the below all are regexps. BadWords match text, ones marked as selectors match jquery selectors. */
 
 var globalBadWords =
-    "\\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump|Elon ?Musk|\\bElon\\b|SpaceX|parler|\\bwoke\\b|MSNBC|taylor greene|\\bbiden|kamala|boebert|cambridge *analytica|(keep|make) america great|de ?santis|AOC|huckabee sanders|bader ginsburg|sarah sanders|Ocasio-Cortez|theapricity|Breitbart|proud boys|roger stone|apricity|jordan[ Bb.]*peterson|mansplain|bolsonaro|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|fake news|roseanne *barr|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Za-z]NRA[^A-Za-z]|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|political[-lly ]*correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|kanye|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
+    "\\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump|DeSantis|Yeezy|Adidas|Elon ?Musk|\\bElon\\b|SpaceX|parler|transgender|\\bwoke\\b|MSNBC|taylor greene|\\bbiden|kamala|boebert|cambridge *analytica|(keep|make) america great|AOC|huckabee sanders|bader ginsburg|sarah sanders|Ocasio-Cortez|theapricity|Breitbart|proud boys|roger stone|apricity|jordan[ Bb.]*peterson|mansplain|bolsonaro|gerrymander|steve king|mitch mcconnell|school shoot|huckabee[^'s]|rex reed|fake news|roseanne *barr|stormy *daniels|eagles of death metal|kanye west|kim kardashian|laughing ?squid|proud boy|parkland|stoneman douglas|sandy hook|kaepernick|dylann roof|Arpaio|John Bolton|Rick Santorum|crisis actor|[^A-Za-z]NRA[^A-Za-z]|maxine waters|environmentalist|religious (freedom|liberty|right)|patriot prayer|deep state|crooked hillary|Conservative Political Action Conference|cpac|actblue|truthdig|sexual misconduct|goyim|shithole countr|\'shithole\'|\"shithole\"|(blue|all|white) lives matter|raw water|assault rifle|political[-lly ]*correct|social justice|roy moore|white nationalist|manafort|rob *schneider|the ?blaze|confederate flag|\\bsharia\\b|hillary clinton|bill ?o['’]?reilly|Wilbur Ross|o[’']?reilly ?factor|\\bTrump\\b|ajit pai|ann coulter|tucker carlson|bill maher|spicer|actblue|Hannity|David\\ Brock|Daily ?Stormer|alex jones|daily caller|bill nye|rachel maddow|infowars|rand paul|keith olbermann|Angus ?King|Cernovich|ann coulter|roger stone|climate deni[ae]|townhall\\.com|richard ?b?\\.? ?spencer|slate.com|kanye|paul joseph watson|prison ?planet|s1\\.zetaboards\\.com|anthroscape|daily ?kos|gamergate|betsy devos|steve bannon|\#*maga[^a-z]|corporate america|healthcare|marine le pen|red ?pill|Yiannopoulos|geert wilders|vox day|huffington|cuckservative|libtard|Bernie Sanders|SJW|alt-right|Tim Pool|Chelsea Clinton|\\@potus|\\@realdonaldtrump|(\\.|\\!) sad\\!|racist|Bernie bros|zero ?hedge|This Tweet is unavailable|liberal propaganda|supremacist|liberal media|electoral landslide|typical liberal|white privilege|Robert Morris|Robert Tappan Morris|Morris Worm|stormfront";
 /* Please note, my personal collection of badWords is selected not by political ideology, but by what seems to attract either the most heated or the most egregiously stupid comments and content online, regardless of political slant. Any apparent political alignment is strictly a 'shoe fits' situation. Also includes a couple of what I think are just totally biased and unreliable propaganda sites and commentators on both ends of the spectrum. */
 /* \\btrump\\b|donald[_ .j]?[_ .j]?[_ .j]?trump proven effective at blocking trump but not "strumpet" */
 var selectorsToConsiderTogether =
@@ -103,7 +105,7 @@ var selectorsToAlwaysHide = "div.cnnoutbrain|div.outbrain-hotlist|div.outbrain-m
 var siteSpecificBadWords = {
 
     /* social media sites*/
-    "twitter.com$|nextdoor.com$|quora.com$|reddit.com$|facebook.com$|youtube.com$": "bias|James Witcher|Nikki Beach|Jussie Smollett|Mueller|Barr report|William Barr|\,” Tom said |Cindy McCain|John McCain|chick-fil-a|America great|AOC|biden|covington|jill stein|abortion|ocasio-cortez|\\bAOC\\b|gabbard|ideological[ly]* pur|purity test|tear *gas|grassley|merrick garland|McCain|soros|Kavanaugh|traitor|Ivanka|same[- ]sex|Jared Kushner|\\bpence\\b|\\bgender\\b|nikki haley|MSM|deplorable|medicaid|melania|the left|climate change|global warming|russia|walmart|wal-mart|[^a-zA-Z]NRA[^a-zA-Z]|nader|climate scien|single[ -]*payer|racism|net neutrality|gubb[aer]+m[ie]+nt|(second|2nd) amendment|government spend|prsident|zionis|taxpayer|anti-*semit|republican|democratic party|democrats?\\b|liberals|healthcare|extremist|comey\\b|libertarian|antifa\\b|bakedalaska|protestor|conservatives|poor people|gov'?t|climate change|terroris[tm]|tax plan|snowflake|global warming|drain the swamp|feminis[tm]|\\bMRA|PUA\\b|unborn|\\btwp|rac(ial|e) realism|venezuela|abortion|\\bISIS\\b|devos|communist|commie|socialist|\\bweev\\b|aurenheimer|white (house|guys)|obama|bDNC\\b|cultural\\ appropriation|hate\\ crime|\RNC\\b|democratic socialism|leftist|rightist|mar-?a-?lago|(white|black|brown) *(wom[ae]n|m[ae]n|people|(-*skin))|burqa|Kellyanne\\ Conway|illegal alien|\\bTrump\\b|white nationalist|Nazi|This tweet is unavailable.",
+    "twitter.com$|nextdoor.com$|quora.com$|reddit.com$|facebook.com$|youtube.com$": "James Witcher|Nikki Beach|Jussie Smollett|Mueller|Barr report|William Barr|\,” Tom said |Cindy McCain|John McCain|chick-fil-a|America great|AOC|biden|covington|jill stein|abortion|ocasio-cortez|\\bAOC\\b|gabbard|ideological[ly]* pur|purity test|tear *gas|grassley|merrick garland|McCain|soros|Kavanaugh|traitor|Ivanka|same[- ]sex|Jared Kushner|\\bpence\\b|\\bgender\\b|nikki haley|MSM|deplorable|medicaid|melania|the left|climate change|global warming|russia|walmart|wal-mart|[^a-zA-Z]NRA[^a-zA-Z]|nader|climate scien|single[ -]*payer|racism|net neutrality|gubb[aer]+m[ie]+nt|(second|2nd) amendment|government spend|prsident|zionis|taxpayer|anti-*semit|republican|democratic party|democrats?\\b|liberals|healthcare|extremist|comey\\b|libertarian|antifa\\b|bakedalaska|protestor|conservatives|poor people|gov'?t|climate change|terroris[tm]|tax plan|snowflake|global warming|drain the swamp|feminis[tm]|\\bMRA|PUA\\b|unborn|\\btwp|rac(ial|e) realism|venezuela|abortion|\\bISIS\\b|devos|communist|commie|socialist|\\bweev\\b|aurenheimer|white (house|guys)|obama|bDNC\\b|cultural\\ appropriation|hate\\ crime|\RNC\\b|democratic socialism|leftist|rightist|mar-?a-?lago|(white|black|brown) *(wom[ae]n|m[ae]n|people|(-*skin))|burqa|Kellyanne\\ Conway|illegal alien|\\bTrump\\b|white nationalist|Nazi|This tweet is unavailable.",
     "twitter.com$": "\\bshill\\b",
     /*common troll comment on twitter, used in other ways on non-political Reddit subs */
     "reddit.com$": "GreenIn2",
@@ -117,7 +119,7 @@ var siteSpecificBadWords = {
 /*ok, this is really dumb, but I have some personal sites (social media, etc) I don't want to publicly associate myself with. */
 /* So, since I post this script publicly, I created the StupidHash function (see below) that inserts a wchash attribute into */
 /* the body of each page. You can put the page's wchash here instead of the url. */
-var exemptSites = "heisenbergreport\\.com|github\\.com|H1231.5759860347705|fivethirtyeight\\.com$|H184.74811863139513|18297985\.81780946|139514\.47879774484|H1269643\.1719910516|78882\.83274254062|\\.gov[/?:]|\\.gov$|H784\.1647977343692|H2603\.8344187906177"; //URL or wchash or wchashhost. NEED \\ to match periods, otherwise periods AND everything else matches in urls. fivethirtyeight\.com$ would match fivethirtyeightacom$. Doesn't matter as much in stupidhashes, as not likely to have two of them identical except for a character in place of the dot.
+var exemptSites = "heisenbergreport\\.com|github\\.com|178496.2674270637|H1231.5759860347705|fivethirtyeight\\.com$|H184.74811863139513|18297985\.81780946|139514\.47879774484|H1269643\.1719910516|78882\.83274254062|\\.gov[/?:]|\\.gov$|H784\.1647977343692|H2603\.8344187906177"; //URL or wchash or wchashhost. NEED \\ to match periods, otherwise periods AND everything else matches in urls. fivethirtyeight\.com$ would match fivethirtyeightacom$. Doesn't matter as much in stupidhashes, as not likely to have two of them identical except for a character in place of the dot.
 /* 78882.83274254062 = Dave M */
 /* Now, some useful definitions for the below sections: */
 //var fb_OutermostWhiteBox = "div._4-u2"; /*Does this ever change? We'll see. */
@@ -166,7 +168,7 @@ var siteSpecificSelectorsToConsiderTogether = {
 
 var constantSiteSpecificSelectorsToAlwaysHide = {
 
-    "facebook.com$": "div._n3 div._6iiv|div._n3 div._6iin|div.UFIRow.UFIComment["+thisScriptHiddenAttribute+"=true]+div.UFIReplyList|" + /* that's the reply list under a hidden comment */
+    "facebook.com$": "div.x1n2onr6 > a[href*='https://www.facebook.com/photo'] img[alt*=Twitter]|div._n3 div._6iiv|div._n3 div._6iin|div.UFIRow.UFIComment["+thisScriptHiddenAttribute+"=true]+div.UFIReplyList|" + /* that's the reply list under a hidden comment */
     "div.pagelet-group.pagelet|img[alt*='may contain: text']:not(.spotlight)|img[alt*=', text']:not(.spotlight)|div[data-referrer='pagelet_trending_tags_and_topics']|div._6iiv._6r_e"
     /* div._6iiv._6r_e is comments on lightbox image */ /* .spotlight is a lightbox image... if it's in a lightbox, I clicked on it, and want to see it. */
        /* had this but it appears not to be used anymore: fb_OutermostWhiteBox +
@@ -198,7 +200,10 @@ var siteSpecificParentsToHideIfAChildIsHidden = { /* NOTE WORKING? Reddit entry 
     /* it's a whole chain from a hidden post image, on up through a hidden post, on up to the outer container, so a whole post is hidden if an imaage  or top post is hidden. */
 +",div[hiddenclass*=_4eek],li[hiddenclass*=_4eek]"
     /* hide whole LI if comment is hidden so like that shows how many replies there are gets hidden.*/
-
+ +",div[hiddenclasstheclosest*=x1n2onr6],li"
+    //one above this was no longer catching all LIs as of Mar 2023
++",div.x1n2onr6,a.x1i10hfl.x1qjc9v5.xjbqb8w.xjqpnuy.xa49m3k.xqeqjp1.x2hbi6w.x13fuv20.xu3j5b3.x1q0q8m5.x26u7qi.x972fbf.xcfux6l.x1qhh985.xm0m39n.x9f619.x1ypdohk.xdl72j9.x2lah0s.xe8uvvx.xdj266r.x11i5rnm.xat24cr.x1mh8g0r.x2lwn1j.xeuugli.xexx8yu.x4uap5.x18d9i69.xkhd6sd.x1n2onr6.x16tdsg8.x1hl2dhg.xggy1nq.x1ja2u2z.x1t137rt.x1o1ewxj.x3x9cwd.x1e5q0jg.x13rtm0m.x1q0g3np.x87ps6o.x1lku1pv.x1a2a7pz.x1lliihq.x1pdlv7q:first-child, div.x6s0dn4.x78zum5.xdt5ytf.x6ikm8r.x10wlt62.x1n2onr6.xh8yej3.x1jx94hy:first-child,div.x6s0dn4.x78zum5.xdt5ytf.x6ikm8r.x10wlt62.x1n2onr6.xh8yej3.x1jx94hy:first-child > div:first-child,div.xqtp20y.x6ikm8r.x10wlt62.x1n2onr6:first-child,div.x10l6tqk.x13vifvy"
+/* that's the whole path to from a hidden photo's parent div up to the div you need to collapse to get rid of the blank white space as of march 20, 2023. */
 +",div._3-8j,div._3-8j > div"
     /* general enclosure for an item that more than one friend has shared */
 
@@ -240,14 +245,14 @@ var badURLWords =
 /* Am I still using the sessionIDs to prevent redundant checks? Should probably switch them to jquery .data() and use again if not. */
 /*I should prob have mutationobserver just mark nodelist with a class, then use jquery to find them, pare them down using descentant and contains and selectorsToConsiderTogether selectors, and style them using '.css='>
 /* contains() example: $( "div:contains('John')" ).css( "text-decoration", "underline" ); */
-/* highlight leaf nodes containing text (beware, case-sensitive): $('*:contains("I am a SIMPLE string")').each(function(){ //logForDebugging("~~~ √173√ 'function( )' ~ ~ ~","","ULTRA");
+/* highlight leaf nodes containing text (beware, case-sensitive): $('*:contains("I am a SIMPLE string")').each(function(){ //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √173√ 'function( )' ~ ~ ~","","ULTRA");
  if($(this).children().length < 1) $(this).css("border","solid 2px green") });
         ^^More info, including wrapping found text in tags, at http://stackoverflow.com/questions/926580/find-text-string-using-jquery */
 /* not() selector: https://api.jquery.com/not-selector/ */
 /* how to run a callback function on all text nodes matching a string or regexp: http://stackoverflow.com/questions/4060056/jquery-find-replace-without-changing-original-text/4060635#4060635 */
 /* .text() method returns innerText, ignoring embedded tags. "a<i>b</i>c".text() returns "abc".
         ^^ if you wanted to get just "ac" from that, see http://viralpatel.net/blogs/jquery-get-text-element-without-child-element/ */
-/* Use .each() and $(this) to iterate: $('.someDivList .divItem').each(function() { //logForDebugging("~~~ √179√ 'function( ) ' ~ ~ ~","","ULTRA");
+/* Use .each() and $(this) to iterate: $('.someDivList .divItem').each(function() { //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √179√ 'function( ) ' ~ ~ ~","","ULTRA");
 
 	$(this).css('background', 'lightblue');
         }); */
@@ -261,7 +266,7 @@ attributes: true, childList: true, characterData: true, subtree: true} */
 /* find some way not to be triggered on user input */
 /* .closest starts with current node and traverses upwords until matching selector is found. https://api.jquery.com/closest/ */
 /* .parentsUntil() traverses up tree and finds child of node matching selector. */
-/* get all leaf nodes: $("div").filter( function(index) { //logForDebugging("~~~ √191√ 'function( index) ' ~ ~ ~","","ULTRA");
+/* get all leaf nodes: $("div").filter( function(index) { //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √191√ 'function( index) ' ~ ~ ~","","ULTRA");
 
         var isLeaf = $(this).children().length === 0;
         return isLeaf;
@@ -274,15 +279,15 @@ have it act on same-domain iframes, like twitter uses for article embeds. */
 
 /* Let's get our variables together & tailored to whatever the current site is */
 
-logForDebugging("Checking keys now");
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Checking keys now");
 globalBadWords = attachSiteSpecifics(globalBadWords||"dummysonothingchokes", siteSpecificBadWords);
-logForDebugging("globalBadWords ", globalBadWords);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("globalBadWords ", globalBadWords);
 selectorsToConsiderTogether = attachSiteSpecifics(selectorsToConsiderTogether||"dummysonothingchokes", siteSpecificSelectorsToConsiderTogether);
 var selectorsToConsiderTogetherRegex = selectorsToConsiderTogether.replace(/\|/g, ",");
-logForDebugging("selectorsToConsiderTogether ", selectorsToConsiderTogether);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("selectorsToConsiderTogether ", selectorsToConsiderTogether);
 selectorsToAlwaysHide = attachSiteSpecifics(selectorsToAlwaysHide||"dummysonothingchokes", constantSiteSpecificSelectorsToAlwaysHide);
 var selectorsToAlwaysHideRegex = selectorsToAlwaysHide.replace(/\|/g, ",");
-logForDebugging("selectorsToAlwaysHide ", selectorsToAlwaysHide);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("selectorsToAlwaysHide ", selectorsToAlwaysHide);
 var parentsToHideIfAChildIsHidden = attachSiteSpecifics("dummysonothingchokes",siteSpecificParentsToHideIfAChildIsHidden).replace(/\|/g, ",");
 
 var exemptRegexp = new RegExp(exemptSites, "gi");
@@ -337,36 +342,36 @@ $(document).keydown(function (e) {
 
 
 
-logForDebugging("########### PRELIMINARY DECLARATIONS FINISHED ############################### ");
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("########### PRELIMINARY DECLARATIONS FINISHED ############################### ");
 
 function attachSiteSpecifics(globalString, siteSpecificArray) {
-    logForDebugging("~~~ √224√ starting 'function attachSiteSpecifics( globalString, siteSpecificArray) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √224√ starting 'function attachSiteSpecifics( globalString, siteSpecificArray) ' ~ ~ ~", "", "ULTRA");
 
-    logForDebugging("Attaching site specifics for ", globalString);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Attaching site specifics for ", globalString);
 
     Object.keys(siteSpecificArray).forEach(function(key) {
-        logForDebugging("~~~ √226√ starting 'function( key) ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √226√ starting 'function( key) ' ~ ~ ~", "", "ULTRA");
 
-        logForDebugging("Checking key ", key);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Checking key ", key);
 
         var value = siteSpecificArray[key];
         var hostRegexp = new RegExp(key, "gi");
         var hostMatch = document.location.hostname.match(hostRegexp); /* time consuming, according to chrome profiler 1.3 secs */
-        logForDebugging("About to match 3 ", hostMatch);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("About to match 3 ", hostMatch);
 
         if (hostMatch !== null) {
-            logForDebugging("~~~ √235√ 'if ( hostMatch !== null) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √235√ 'if ( hostMatch !== null) ' ~ ~ ~", "", "ULTRA");
 
             globalString = value + (globalString == "" ? "" :  "|" + globalString );
-            logForDebugging("added site-specific " + key);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added site-specific " + key);
 
 
         }
-        logForDebugging("~~~~~ √226√ ending 'function( key) ' ~ ~ ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √226√ ending 'function( key) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
     });
 
-    logForDebugging("~~~~~ √224√ ending 'function attachSiteSpecifics( globalString, siteSpecificArray) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √224√ ending 'function attachSiteSpecifics( globalString, siteSpecificArray) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
     return globalString;
 }
@@ -408,15 +413,15 @@ if(!document.body.hasAttribute("wcHashHost")) {
 }
 
 async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMatches) {
-  logForDebugging("Mutation in MainScript ",mutation.target);
-    logForDebugging("~~~ √270√ starting 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~", "", "ULTRA");
+  !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Mutation in MainScript ",mutation.target);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √270√ starting 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~", "", "ULTRA");
 
     /* big stuff happens here */
-    logForDebugging("Main running. Mutation:", mutation);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Main running. Mutation:", mutation);
 
-    logForDebugging("Main running mutation.length:", mutation.length);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Main running mutation.length:", mutation.length);
 
-    logForDebugging("Main running. currentMatches:", currentMatches);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Main running. currentMatches:", currentMatches);
 
     observerEnable = false;
     var thisActiveElement = document.activeElement;
@@ -424,7 +429,7 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
     var i;
     var loopLength = (mutation.type = "childList" ? mutation.addedNodes.length : 1);
     for (i = 0; i < loopLength; i++) { //begin for loop to hit all added nodes
-        logForDebugging("In for loop:", "iteration " + i + " of " + loopLength);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("In for loop:", "iteration " + i + " of " + loopLength);
 
         var targetNotJQ = mutation.type = "childList" ? mutation.addedNodes[i] : mutation.target; //we checked that addedNodes has length >0 before calling main(), so no error here
         var thisTarget = $(targetNotJQ);
@@ -434,14 +439,14 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
         //only check the mut.target if no nodes are recorded as having been added, and innerHTML has changed since last run
         var mutationParent = thisTarget.parent();
         /* You know, if the mutationtype is "added nodes", you can get the added nodes from the mutation object and just check those. If nodes are removed, it may be marked "added nodes" but then the addednodes attribute is empty and removednodes is not. */
-        logForDebugging("ThisTarget is: (about to detach):", thisTarget);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("ThisTarget is: (about to detach):", thisTarget);
 
-        logForDebugging("mutationParent:", mutationParent);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("mutationParent:", mutationParent);
 
         /* for next line: thisTarget is an OBJECT, not a page elemnt! you have to get the page element by index! */
         /* userscripts are triggered when body is added... that's why we can't detach and re-add the body, it'll get stuck in  a loop. Maybe shoudl add an attrubute to the body or something to let it do it once but not again. */
         if (!!thisTarget.length && thisTarget[0].tagName != "BODY") {
-            logForDebugging("~~~ √278√ 'if( thisTarget.tagName != ''BODY'') ' ~ ~ ~:", thisTarget[0].tagName, "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √278√ 'if( thisTarget.tagName != ''BODY'') ' ~ ~ ~:", thisTarget[0].tagName, "ULTRA");
  /* something was interfering with a lot of normal page operations, things were reloading, etc. I'm hoping this conditional fixes it. */
             var placeholder = $('<span style="display: none;" />').insertAfter(thisTarget);
 
@@ -451,7 +456,7 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
         //makes things faster
         /* DIDN'T WORK... see bottom of main function */
         if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
-            logForDebugging("~~~ √284√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √284√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
             observerEnable = false;
             targetNotJQ.style =
@@ -462,18 +467,18 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
 
         }
 
-        logForDebugging("checking node:", targetNotJQ);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("checking node:", targetNotJQ);
 
         if (typeof thisTarget.data() === "object" &&
             (!thisTarget.data("scriptprocid") ||
                 thisTarget.data("scriptprocid") != sessionID)
         ) {
-            logForDebugging("~~~ √296√ starting 'if ( typeof thisTarget.data() === ''object'' && 298 (!thisTarget.data(''scriptprocid'') || 299 thisTarget.data(''scriptprocid'') != sessionID) 300 ) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √296√ starting 'if ( typeof thisTarget.data() === ''object'' && 298 (!thisTarget.data(''scriptprocid'') || 299 thisTarget.data(''scriptprocid'') != sessionID) 300 ) ' ~ ~ ~", "", "ULTRA");
 
             wcSetAttributeSafely(targetNotJQ, "scriptprocid", sessionID);
-            logForDebugging("Confirmed not yet checked this session:", targetNotJQ);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Confirmed not yet checked this session:", targetNotJQ);
 
-            logForDebugging("about to find selectorsToConsiderTogether:", "");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("about to find selectorsToConsiderTogether:", "");
 
             /* I should skip this and the next if the top-level node's inner text doesn't contain badwords, save some time cycling through them */
 
@@ -486,10 +491,10 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                 var filtThis = this;
                     var filtThisInnerHTML = filtThis.innerHTML;
                 var filtThisjq= $(this);
-                    logForDebugging("~~~ √312√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √312√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
                     if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
-                        logForDebugging("~~~ √313√  'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √313√  'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
                         /* debugger; */
                         filtThis.style =
@@ -504,10 +509,10 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
                         /* was: !$(this).prop("isContentEditable") */
                         (thisActiveElement.tagname == "BODY" ? true : (!!filtThisjq.prop("isContentEditable") == false && filtThisjq.has("[contenteditable]").length == 0)) /* rejects anything with editable descendants */
                     ) {
-                        logForDebugging("~~~ √321√ starting 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √321√ starting 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~", "", "ULTRA");
 
                         if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
-                            logForDebugging("~~~ √328√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √328√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
                             /* debugger; */
                             filtThis.style =
@@ -517,20 +522,20 @@ async function mainScript(elLengthOld, theDelay, mutation, sessionID, currentMat
 
                         }
 
-                        logForDebugging("found '" + theBadWordsFound + "' in selectorsToConsiderTogether", filtThis);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("found '" + theBadWordsFound + "' in selectorsToConsiderTogether", filtThis);
 
-                        logForDebugging("~~~~~ √321√ ending 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √321√ ending 'if ( theBadWordsFound!== null && (!$(this).data(''scriptprocid'') || 324 $(this).data(''scriptprocid'') != sessionID) && 325 /* was: !$(this).prop(''isContentEditable'') */ 326 ( thisActiveElement.tagname==''BODY''?true: ($(this).prop(''isContentEditable'')==false && $(this).has(''[contenteditable]'').length==0)) /* rejects anything with editable descendants */ 327 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                         filtThisjq.data("scriptprocid", sessionID);
                         filtThisjq.data("oldInnerHTML", filtThisInnerHTML);
                         return true;
                     } else {
-                        logForDebugging("~~~ √321√  'else ', returning false ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √321√  'else ', returning false ~ ~ ~", "", "ULTRA");
 
 
                         return false;
                     }
-                    logForDebugging("~~~~~ √312√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √312√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 }); /* end filter function */
 var theseNodesForEachl = theseNodesForEach.length;
@@ -545,20 +550,20 @@ var tn=theseNodesForEach[theseNodesForEachi];
 tnjq.attr("hiddencount",++hiddencounttnjq).attr("hiddenclass",hiddenclasstnjq);}
 
 
-                    logForDebugging("~~~ √347√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √347√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
                     if (thisPageIsExempt) {
-                        logForDebugging("~~~ √348√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √348√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
                         tnjq
                             .css("border", "3px solid red")
                             .css("background", "rgba(255,225,225,.5)")
                             .attr(thisScriptHiddenAttribute, "true");
-                        logForDebugging("TEST added red to", tn);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("TEST added red to", tn);
 
 
                     } else {
-                        logForDebugging("~~~ √353√ 'else ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √353√ 'else ' ~ ~ ~", "", "ULTRA");
 
                         tnjq
                             .hide()
@@ -568,9 +573,9 @@ tnjq.attr("hiddencount",++hiddencounttnjq).attr("hiddenclass",hiddenclasstnjq);}
 
                     }
                     wcSetAttributeSafely(tn, "scriptprocid", sessionID);
-                    logForDebugging("added red to",tn);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added red to",tn);
 
-                    logForDebugging("~~~~~ √347√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √347√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 
 }
@@ -579,6 +584,23 @@ tnjq.attr("hiddencount",++hiddencounttnjq).attr("hiddenclass",hiddenclasstnjq);}
             /* TEXT NODES ONLY NOW: */
             var walk = thisTarget /*find ordinarily only returns child elements unless you add addBack.*/
                 /* .find(':visible:not("iframe")').addBack(':visible:not("iframe")') */
+
+/* march 2023: not even going to walk the tree if text content of top node doesn't contain badwords. Hopefully this will improve performance */
+
+.filter(function() {
+
+var theFiltThis=this.textContent;
+
+      var theBadWordsNodeValueFound =  theFiltThis.match(/[a-zA-Z]/) ?theFiltThis.match(theBadWords) : null; /* first make sure theres even text content to filter *//*see comment above on previous use of this about this */
+                    return (theBadWordsNodeValueFound !== null );
+                    /* was !$(this).prop( "isContentEditable" ) /~ cant use === false because .prop("isContentEditable") === undefined for text nodes ~/ */
+                    /* update... !!value will coerce value=undefined to false */
+
+
+
+})
+            /* end march 2023 addition */
+
                 .find(':not("iframe,script,style")').addBack(':visible:not("iframe,script,style")')
                 .contents() /* like children() but also includes text and comment nodes */
                 .filter(function() {
@@ -587,15 +609,15 @@ tnjq.attr("hiddencount",++hiddencounttnjq).attr("hiddenclass",hiddenclasstnjq);}
                 .filter(function() {
                 var theFiltThis=this;
                 var theFiltThisjq=$(this);
-                    logForDebugging("~~~ √372√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √372√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-                    logForDebugging("filtering node:", theFiltThis, "greenCrit");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtering node:", theFiltThis, "greenCrit");
 
-                    logForDebugging("filtered nodeValue is:", theFiltThis.nodeValue, "greenCrit");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtered nodeValue is:", theFiltThis.nodeValue, "greenCrit");
 
-                  /*  //logForDebugging("filtered node value - currentMatches is:", currentMatches, "greenCrit");
+                  /*  //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtered node value - currentMatches is:", currentMatches, "greenCrit");
  */
-                    /* //logForDebugging("filtered node value - theBadWords is:", theBadWords,"greenCrit");
+                    /* //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtered node value - theBadWords is:", theBadWords,"greenCrit");
  */
 
                     var theBadWordsNodeValueFound =  theFiltThis.nodeValue.match(/[a-zA-Z]*/) ?theFiltThis.nodeValue.match(currentMatches) ? theFiltThis.nodeValue.match(theBadWords) : null:null; /* first make sure theres even text content to filter *//*see comment above on previous use of this about this */
@@ -613,59 +635,61 @@ tnjq.attr("hiddencount",++hiddencounttnjq).attr("hiddenclass",hiddenclasstnjq);}
                         "!!$(this).prop('isContentEditable')": !!tempVar.prop("isContentEditable"),
                         "!!$(this).has('[contenteditable]').length==false)": !!tempVar.has("[contenteditable]").length == false
                     };
-                    logForDebugging("the filter returns (true for include):", theCritResult, "greenCrit");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("the filter returns (true for include):", theCritResult, "greenCrit");
 
                     if (theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) {
 
-                        logForDebugging("456 Matched green ", theBadWordsNodeValueFound, "greenCrit");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("456 Matched green ", theBadWordsNodeValueFound, "greenCrit");
 
 
                     }
                     if (!theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) {
-                        logForDebugging("~~~ √393√ 'if ( !theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √393√ 'if ( !theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~", "", "ULTRA");
 
-                        logForDebugging("theBadWordsNodeValueFound ", theBadWordsNodeValueFound, "greenCrit");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theBadWordsNodeValueFound ", theBadWordsNodeValueFound, "greenCrit");
 
-                        logForDebugging("document.activeElement.tagName ", thisActiveElement.tagName, "greenCrit");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("document.activeElement.tagName ", thisActiveElement.tagName, "greenCrit");
 
-                        logForDebugging("$(this) ",                             tempVar                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("$(this) ",                             tempVar                         );
 
-                        logForDebugging("$(this).prop(isContentEditable) ",                             tempVar.prop("isContentEditable"), "greenCrit"                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("$(this).prop(isContentEditable) ",                             tempVar.prop("isContentEditable"), "greenCrit"                         );
 
-                        logForDebugging("$(this).has([contenteditable]).length ",                             tempVar.has("[contenteditable]").length, "greenCrit"                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("$(this).has([contenteditable]).length ",                             tempVar.has("[contenteditable]").length, "greenCrit"                         );
 
 
 
                     }
-                    logForDebugging("~~~~~ √372√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √372√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                     return theCriteria;
                 }); /* filter function 2 done */
-            logForDebugging("about to walk text leaves:", walk);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("about to walk text leaves:", walk);
 
 //about to replace walk.each
         var walkl=walk.length;
             for (var walki=0;walki<walkl; walki++){
                 var wvar=walk[walki];
                 var wvjq=$(wvar);
-                logForDebugging("~~~ √420√ starting 'function( ) ' ~ ~ ~","beginning to look for selectors to consider together", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √420√ starting 'function( ) ' ~ ~ ~","beginning to look for selectors to consider together", "ULTRA");
 
-                logForDebugging("walking text leaf:", wvjq[0] || wvar);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("walking text leaf:", wvjq[0] || wvar);
  /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
                 var theClosest = wvjq.closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
                 var theClosestBlock = theClosest.length === 0 ? wvjq.closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]'*/ ) : theClosest;
                 theClosest = theClosest.length === 0 ? theClosestBlock : theClosest;
                 /* sometimes the mutation target is just a text node that changed (like clicking a "more" link on facebook. In that case, see if it's enclosed in one of selectorsToConsiderTogether before just looking for the closest() parent block element. */
-                logForDebugging("theClosestBlock:", theClosestBlock);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theClosestBlock:", theClosestBlock);
 
-                logForDebugging("theClosest:", theClosest);
-                logForDebugging("theClosestBlock:"+JSON.stringify(theClosestBlock), theClosest,"normal",theClosest);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theClosest:", theClosest);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theClosestBlock:");
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging(theClosestBlock);
+
   var hiddencounttheClosest = 0;
  var hiddenclasstheClosest =theClosest.attr('class');
   while (typeof theClosest.parent()[0] != 'undefined' && theClosest.parent().attr("hiddenclasstheClosest",hiddenclasstheClosest)[0].matches(parentsToHideIfAChildIsHidden)) {theClosest = theClosest.parent();
 theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hiddenclasstheClosest);}
                 if (thisPageIsExempt) {
-                    logForDebugging("~~~ √437√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √437√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
                     theClosest
                         .css("border", "1px solid green")
@@ -677,10 +701,10 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                             .css("border", "1px dotted darkgreen")
                             .css("background", "rgba(200,255,200,.5)")
                             .attr(thisScriptHiddenAttribute, "true");
-                       logForDebugging("495 Setting css for (theClosest != theClosestBlock)", theClosestBlock, "ULTRA");
+                       !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("495 Setting css for (theClosest != theClosestBlock)", theClosestBlock, "ULTRA");
 
                     }
-                    logForDebugging("~~~~~ √437√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √437√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 } else {
 
@@ -689,12 +713,12 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                         .data("savedstyle", theClosest.attr("style"))
                         .attr("style", "display:none !important")
                         .attr(thisScriptHiddenAttribute, "true");
-                 logForDebugging("~~~~~ √437√ ELSE (page isn't exempt) ' ~ ~ ~ ~ ~", theClosest, "ULTRA");
+                 !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √437√ ELSE (page isn't exempt) ' ~ ~ ~ ~ ~", theClosest, "ULTRA");
 
                 }
-                logForDebugging("added green to", theClosest[0] || theClosest);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added green to", theClosest[0] || theClosest);
  /* don't know why theClosest[0] is sometimes, maybe always, not evaluating. don't care right now. */
-                logForDebugging("~~~~~ √420√ ending 'function( ) ' ~ ~ ~ ~ ~", "endinging looking for selectors to consider together", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √420√ ending 'function( ) ' ~ ~ ~ ~ ~", "endinging looking for selectors to consider together", "ULTRA");
 
             }
 
@@ -702,13 +726,13 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
 
                 //end replacement
 
-            logForDebugging("done walking text leaves", walk);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("done walking text leaves", walk);
 
 
             /* NOW A ONLY */
             var theseAnodes = thisTarget
                 .find("span.fwb, a[data-hovercard]").addBack("span.fwb, a[data-hovercard]").filter(function() {
-                    logForDebugging("filtering theseAnodes",  this, "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtering theseAnodes",  this, "ULTRA");
  // WAS .find("A,span.fwb") , BUT DON'T NEED A, NAME IS ENOUGH
                     var theFiltThis = this;
                     var theFiltThisjq = $(this);
@@ -725,24 +749,24 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                 .filter(function() {
                 var theFiltThis = this;
                 var theFiltThisjq = $(this);
-                    logForDebugging("~~~ √475√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √475√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
                     wcSetAttributeSafely(theFiltThis, "scriptprocid", sessionID);
                     var itsAhref = false; /* was (typeof this.href) === 'string' && (this.href.match(theBadFBURLWords) || ("mdelimiter"+$(this).text()+"mdelimiter").match(theBadFBNames)) && this.href != "#"; */
                     var itsFWBSpan = (typeof theFiltThis.tagName) === 'string' && theFiltThis.tagName == "SPAN" /* fails if not uppercase */ && theFiltThisjq.hasClass("fwb");
                     var itsDataHovercard = (typeof theFiltThis.tagName) === 'string' && theFiltThis.tagName == "A" && theFiltThisjq.is("[data-hovercard]");
                     var itsAname = (itsFWBSpan || itsDataHovercard) && ("mdelimiter" + theFiltThisjq.text() + "mdelimiter").match(theBadFBNames);
-                    logForDebugging("found A section fwb span", theFiltThisjq.text());
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("found A section fwb span", theFiltThisjq.text());
 
-                    /* //logForDebugging("itsAname",itsAname);
+                    /* //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("itsAname",itsAname);
 
-                    logForDebugging("(typeof this.tagName) === 'string'",(typeof this.tagName) === 'string');
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("(typeof this.tagName) === 'string'",(typeof this.tagName) === 'string');
 
-                    logForDebugging("this.tagName=='span'",this.tagName);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("this.tagName=='span'",this.tagName);
 
-                    logForDebugging("$(this).hasClass('fwb')",$(this).hasClass("fwb"));
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("$(this).hasClass('fwb')",$(this).hasClass("fwb"));
 
-                    logForDebugging("('mdelimiter'+$(this).text()+'mdelimiter').match(theBadFBNames)",("mdelimiter"+$(this).text()+"mdelimiter").match(theBadFBNames));
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("('mdelimiter'+$(this).text()+'mdelimiter').match(theBadFBNames)",("mdelimiter"+$(this).text()+"mdelimiter").match(theBadFBNames));
 */
 
 
@@ -752,73 +776,73 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                                 var theFiltThis = this;
                 var theFiltThisjq = $(this);
 
-                    logForDebugging("~~~ √490√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √490√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-                    logForDebugging("filtering A section pt II node:", theFiltThis);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtering A section pt II node:", theFiltThis);
 
-                    logForDebugging("filtered A section pt II node value is:", theFiltThis.nodeValue);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("filtered A section pt II node value is:", theFiltThis.nodeValue);
 
                     var theCriteria =
 
                         (thisActiveElement.tagName == "BODY" ? true : (!!theFiltThisjq.prop("isContentEditable") == false && theFiltThisjq.has("[contenteditable]").length == 0)); /* rejects anything with editable descendants */
                     /* was !$(this).prop( "isContentEditable" ) /~ cant use === false because .prop("isContentEditable") === undefined for text nodes ~/ */
-                    logForDebugging("the A section filter returns (true for include):",                         theCriteria                     );
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("the A section filter returns (true for include):",                         theCriteria                     );
 
                     if (theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) {
-                        logForDebugging("~~~ √503√ starting 'if ( theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √503√ starting 'if ( theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~", "", "ULTRA");
 
                         if ((typeof theFiltThis.href) === "string" && theFiltThis.href.match(theBadFBURLWords)) {
 
-                            logForDebugging("Matched purple href ", theFiltThis.href.match(theBadFBURLWords));
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Matched purple href ", theFiltThis.href.match(theBadFBURLWords));
 
 
                         } else {
 
-                            logForDebugging("Matched purple contents ", ("mdelimiter" + theFiltThisjq.text() + "mdelimiter").match(theBadFBNames));
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Matched purple contents ", ("mdelimiter" + theFiltThisjq.text() + "mdelimiter").match(theBadFBNames));
 
 
 
                         }
 
-                        logForDebugging("~~~~~ √503√ ending 'if ( theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √503√ ending 'if ( theCriteria && CONSOLE_DEBUGGING_MESSAGES_ON) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                     }
 
-                    logForDebugging("~~~~~ √490√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √490√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                     return theCriteria;
                 });
-            logForDebugging("about to walk A leaves in A section:", aWalk);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("about to walk A leaves in A section:", aWalk);
 
    var awalkl=aWalk.length;
             for (var awalki=0;awalki<awalkl; awalki++) {
                 var awvar=theseNodesForEach[theseNodesForEachi];
                 var awjq=$(awvar)
-                logForDebugging("~~~ √526√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √526√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-                logForDebugging("walking A section leaf:", awjq[0] || awvar);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("walking A section leaf:", awjq[0] || awvar);
  /* don't know why this[0] is sometimes, maybe always, not evaluating. don't care right now. maybe needs to be $(this)[0]?*/
                 var theClosest = awjq.closest(selectorsToConsiderTogetherRegex); /* I need to use nextUntil() and prevUntil() to add consecutive sibling dd's and dt's to theClosest so one doesn't get left if the other is removed. See https://en.wikipedia.org/wiki/List_of_music_considered_the_worst for example. Too tired to do it right now though. */
                 var theClosestBlock = theClosest.length === 0 ? awjq.closest("p,div,td,table,h1,h2,h3,h4,h5,h6,li,dd,dt" /* '[style*=display:block]' */ ) : theClosest;
                 theClosest = theClosest.length === 0 ? theClosestBlock : theClosest;
                 /* sometimes the mutation target is just a text node that changed (like clicking a "more" link on facebook. In that case, see if it's enclosed in one of selectorsToConsiderTogether before just looking for the closest() parent block element. */
-                logForDebugging("theClosestBlock:", theClosestBlock);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theClosestBlock:", theClosestBlock);
   var hiddencounttheClosest = 0;
  var hiddenclasstheClosest =theClosest.attr('class');
   while (typeof theClosest.parent()[0] != 'undefined' &&  theClosest.parent().attr("hiddenclasstheClosest",hiddenclasstheClosest)[0].matches(parentsToHideIfAChildIsHidden)) {theClosest = theClosest.parent();
 theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hiddenclasstheClosest);}
 
-                logForDebugging("theClosest:", theClosest);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theClosest:", theClosest);
 
                 if (thisPageIsExempt == true) {
-                    logForDebugging("~~~ √543√ starting 'if ( thisPageIsExempt == true) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √543√ starting 'if ( thisPageIsExempt == true) ' ~ ~ ~", "", "ULTRA");
 
                     theClosest
                         .css("border", "1px solid aqua")
                         .css("background", "rgba(150,250,250,.5)")
                         .attr(thisScriptHiddenAttribute, "true");
                     if (theClosest != theClosestBlock) {
-                        logForDebugging("~~~ √548√ 'if ( theClosest != theClosestBlock) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √548√ 'if ( theClosest != theClosestBlock) ' ~ ~ ~", "", "ULTRA");
 
                         theClosestBlock
                             .css("border", "1px dotted aqua")
@@ -826,10 +850,10 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                             .attr(thisScriptHiddenAttribute, "true");
 
                     }
-                    logForDebugging("~~~~~ √543√ ending 'if ( thisPageIsExempt == true) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √543√ ending 'if ( thisPageIsExempt == true) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 } else {
-                    logForDebugging("~~~ √554√ 'else ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √554√ 'else ' ~ ~ ~", "", "ULTRA");
 
                     theClosest
                         .hide()
@@ -838,26 +862,26 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                         .attr(thisScriptHiddenAttribute, "true");
 
                 }
-                logForDebugging("added aqua to", theClosest[0] || theClosest);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added aqua to", theClosest[0] || theClosest);
  /* don't know why theClosest[0] is sometimes, maybe always, not evaluating. don't care right now. */
-                logForDebugging("~~~~~ √526√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √526√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
             }
-            logForDebugging("done walking A section text leaves", aWalk);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("done walking A section text leaves", aWalk);
 
 
-            logForDebugging("~~~~~ √296√ ending 'if ( typeof thisTarget.data() === ''object'' && 298 (!thisTarget.data(''scriptprocid'') || 299 thisTarget.data(''scriptprocid'') != sessionID) 300 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √296√ ending 'if ( typeof thisTarget.data() === ''object'' && 298 (!thisTarget.data(''scriptprocid'') || 299 thisTarget.data(''scriptprocid'') != sessionID) 300 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
         } else {
-            logForDebugging("~~~ √571√ 'else ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √571√ 'else ' ~ ~ ~", "", "ULTRA");
 
-            logForDebugging("skipped crit1:", targetNotJQ);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("skipped crit1:", targetNotJQ);
 
-            logForDebugging("skipped crit2: typeof thisTarget.data():", typeof thisTarget.data());
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("skipped crit2: typeof thisTarget.data():", typeof thisTarget.data());
 
-            logForDebugging("skipped crit3:thisTarget.data(scriptprocid) :", thisTarget.data("scriptprocid"));
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("skipped crit3:thisTarget.data(scriptprocid) :", thisTarget.data("scriptprocid"));
 
-            logForDebugging("skipped crit4: sessionID:", sessionID);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("skipped crit4: sessionID:", sessionID);
 
 
             wcSetDebuggingAttributeSafely(targetNotJQ, "thisNodeSkippedForSession", sessionID);
@@ -868,22 +892,22 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
 
         /* this isn't the best way to do this, I don't think. Sometimes a "+thisScriptHiddenAttribute+" element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */
         if (thisActiveElement.tagName != "BODY") {
-            logForDebugging("~~~ √585√ starting 'while backspace key is being hit, and the script jumps in and hides them. */ 586 587 588 /* this isn't the best way to do this, I don't think. Sometimes a "+thisScriptHiddenAttribute+" element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */ if(thisActiveElement.tagName != ''BODY'') ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √585√ starting 'while backspace key is being hit, and the script jumps in and hides them. */ 586 587 588 /* this isn't the best way to do this, I don't think. Sometimes a "+thisScriptHiddenAttribute+" element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */ if(thisActiveElement.tagName != ''BODY'') ' ~ ~ ~", "", "ULTRA");
  /* only do if there is an active input element */
 
             var hiddenWalk = thisTarget
                 .find("["+thisScriptHiddenAttribute+"=true]:has([contenteditable])")
                 .addBack("["+thisScriptHiddenAttribute+"=true]:has([contenteditable])");
             if (thisPageIsExempt) {
-                logForDebugging("~~~ √594√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √594√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
                 var hiddenwalkl=hiddenWalk.length;
             for (var hiddenwalki=0;hiddenwalki<hiddenwalkl; hiddenwalki++)  {
                 var hw=hiddenWalk[hiddenwalki];
                 var hwjq=$(hw);
-                    logForDebugging("~~~ √595√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √595√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-                    logForDebugging("unhiding text leaf:", hw);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("unhiding text leaf:", hw);
 
 
                     hwjq
@@ -893,46 +917,46 @@ theClosest.attr("hiddencount",++hiddencounttheClosest).attr("hiddenclass",hidden
                         .attr("style", hwjq.data("savedstyle"))
                         .attr(thisScriptHiddenAttribute, "");
 
-                    logForDebugging("added blue to", hwjq);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added blue to", hwjq);
 
 
                 }
 
-                logForDebugging("~~~~~ √594√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √594√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
             } else {
-                logForDebugging("~~~ √608√ starting 'else ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √608√ starting 'else ' ~ ~ ~", "", "ULTRA");
 
                    var hiddenwalkl=hiddenWalk.length;
             for (var hiddenwalki=0;hiddenwalki<hiddenwalkl; hiddenwalki++) {
                  var hw=hiddenWalk[hiddenwalki];
                 var hwjq=$(hw);
 
-                    logForDebugging("~~~ √609√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √609√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-                    logForDebugging("unhiding text leaf:",hw);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("unhiding text leaf:",hw);
 
                     hwjq.show().attr(thisScriptHiddenAttribute, "");
-                    logForDebugging("added blue to", hwjq);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added blue to", hwjq);
 
 
                 }
 
-                logForDebugging("~~~~~ √608√ ending 'else ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √608√ ending 'else ' ~ ~ ~ ~ ~", "", "ULTRA");
 
             }
-            logForDebugging("~~~~~ √585√ ending 'while backspace key is being hit, and the script jumps in and hides them. */ 586 587 588 /* this isn't the best way to do this, I don't think. Sometimes a "+thisScriptHiddenAttribute+" element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */ if(thisActiveElement.tagName != ''BODY'') ' ~ ~ ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √585√ ending 'while backspace key is being hit, and the script jumps in and hides them. */ 586 587 588 /* this isn't the best way to do this, I don't think. Sometimes a "+thisScriptHiddenAttribute+" element CONTAINS an editable one. Not sure if this catches those. (UPDATE: seems to be working, will fix if it doesn't always. */ if(thisActiveElement.tagName != ''BODY'') ' ~ ~ ~ ~ ~", "", "ULTRA");
 
         }
-logForDebugging("targetNotJQ ",targetNotJQ);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("targetNotJQ ",targetNotJQ);
         var theSelectorsToAlwaysHide = docbodyjq /*don't use thisTarget -- the selector to always hide can sometimes be in the mutationTarget but not in the addedNodes (UPDATE THIS. USE THE MUTATION.TARGET, NOT THE DOCUMENT.BODY AND SEE IF IT WORKS.*/
             .find(selectorsToAlwaysHideRegex)
             .not("["+thisScriptHiddenAttribute+"]");
-        //while (theSelectorsToAlwaysHide ) { //logForDebugging("~~~ √620√ starting 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~","","ULTRA");
+        //while (theSelectorsToAlwaysHide ) { //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √620√ starting 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~","","ULTRA");
 
         var theSelectorsToAlwaysHidel=theSelectorsToAlwaysHide.length;
             for (var theSelectorsToAlwaysHidei=0;theSelectorsToAlwaysHidei<theSelectorsToAlwaysHidel; theSelectorsToAlwaysHidei++)  {
-            logForDebugging("~~~ √621√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √621√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
             /* we do this _after_ seaching for badwords so selectortoalwayshide that use ["+thisScriptHiddenAttribute+"] will get catch things that were just hidden */
                 var tstah = theSelectorsToAlwaysHide[theSelectorsToAlwaysHidei];
@@ -947,45 +971,45 @@ logForDebugging("targetNotJQ ",targetNotJQ);
 theClosesttsjq.attr("hiddencount",++hiddencounttsjq).attr("hiddenclass",hiddenclasstsjq);}
 
             if (thisPageIsExempt) {
-                logForDebugging("~~~ √624√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √624√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
                 theClosesttsjq
                     .css("border", "1px solid orange")
                     .css("background", "rgba(255,240,225,.5")
                     .attr(thisScriptHiddenAttribute, "true");
-                logForDebugging("Added orange to", theClosesttsjq);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Added orange to", theClosesttsjq);
 
 
             } else {
-                logForDebugging("~~~ √630√ 'else ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √630√ 'else ' ~ ~ ~", "", "ULTRA");
 
                 theClosesttsjq.hide().attr(thisScriptHiddenAttribute, "true");
-                logForDebugging("Added orange to", theClosesttsjq);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Added orange to", theClosesttsjq);
 
 
             }
 
-            logForDebugging("added orange to", tstah);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added orange to", tstah);
 
-            logForDebugging("~~~~~ √621√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √621√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
         }
 
         // theSelectorsToAlwaysHide =thisTarget.find(selectorsToAlwaysHide.replace(/\|/g, ",")).not("["+thisScriptHiddenAttribute+"]");
-        logForDebugging("~~~~~ √620√ ending 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~ ~ ~","","ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √620√ ending 'while (theSelectorsToAlwaysHide ) ' ~ ~ ~ ~ ~","","ULTRA");
         if (!!thisTarget.length && thisTarget[0].tagName != "BODY") {
-            logForDebugging("~~~ √639√ 'if( thisTarget[0].tagName != ''BODY'') ' ~ ~ ~:", thisTarget, "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √639√ 'if( thisTarget[0].tagName != ''BODY'') ' ~ ~ ~:", thisTarget, "ULTRA");
 
             /* thisTarget is an OBJECT, not a page elemnt! you have to get the page element by index! */
             thisTarget.insertBefore(placeholder);
-            logForDebugging("thisTarget inserted", thisTarget);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("thisTarget inserted", thisTarget);
 
             placeholder.remove(); /* DIDN'T WORK... see top of main function */
 
         }
     } //end for loop
     observerEnable = true;
-    logForDebugging("~~~~~ √270√ ending 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √270√ ending 'function main( elLengthOld, theDelay, mutation, sessionID,currentMatches) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 }
     /*end visibility check */
@@ -1024,16 +1048,16 @@ if (embedObj=="") {        console.log(document.location + "["+logClass+"]"," - 
 }
 
 function wcSetAttributeSafely(node, attribute, value) {
-    logForDebugging("~~~ √656√ starting 'function wcSetAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √656√ starting 'function wcSetAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
 
     var nodejq=$(node);
     if (typeof nodejq.data() === "object") {
-        logForDebugging("~~~ √657√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √657√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
 
         nodejq.data(attribute, value);
 
     } else if (node.nodeType == 3) {
-        logForDebugging("~~~ √659√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √659√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
 
         wcSetDebuggingAttributeSafely(node.parentNode, attribute + "__in_child_" + node.nodeValue.replace(/\b/g, "") + "__",
             value
@@ -1041,25 +1065,25 @@ function wcSetAttributeSafely(node, attribute, value) {
 
     }
     //else {node.textContent=node.textContent + "{§"+attribute+"="+value+"§}"}
-    logForDebugging("~~~~~ √656√ ending 'function wcSetAttributeSafely( node, attribute, value) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √656√ ending 'function wcSetAttributeSafely( node, attribute, value) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 }
 
 function wcSetDebuggingAttributeSafely(node, attribute, value) {
     var nodejq=$(node);
 
-    logForDebugging("~~~ √669√ starting 'function wcSetDebuggingAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √669√ starting 'function wcSetDebuggingAttributeSafely( node, attribute, value) ' ~ ~ ~", "", "ULTRA");
 
     if (RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) {
-        logForDebugging("~~~ √670√ starting 'if ( RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √670√ starting 'if ( RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) ' ~ ~ ~", "", "ULTRA");
 
         if (typeof nodejq.data() === "object") {
-            logForDebugging("~~~ √671√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √671√ 'if ( typeof $(node).data() === ''object'') ' ~ ~ ~", "", "ULTRA");
 
             nodejq.data(attribute, value);
 
         } else if (node.nodeType == 3) {
-            logForDebugging("~~~ √673√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √673√ 'if ( node.nodeType == 3) ' ~ ~ ~", "", "ULTRA");
 
             wcSetDebuggingAttributeSafely(node.parentNode, attribute + "__in_child_" + node.nodeValue.replace(/\b/g, "") + "__",
                 value
@@ -1067,15 +1091,15 @@ function wcSetDebuggingAttributeSafely(node, attribute, value) {
 
         }
         //else {node.textContent=node.textContent + "{§"+attribute+"="+value+"§}"}
-        logForDebugging("~~~~~ √670√ ending 'if ( RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) ' ~ ~ ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √670√ ending 'if ( RECORD_DEBUGGING_INFO_IN_NODE_ATTRIBUTES_AS_THEY_ARE_PROCESSED == true) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
     }
-    logForDebugging("~~~~~ √669√ ending 'function wcSetDebuggingAttributeSafely( node, attribute, value) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √669√ ending 'function wcSetDebuggingAttributeSafely( node, attribute, value) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 }
 
 function exemptThisPage() {
-    logForDebugging("~~~ √712√ 'function exemptThisPage( ) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √712√ 'function exemptThisPage( ) ' ~ ~ ~", "", "ULTRA");
 
     //red star in lower right corner was clicked
 
@@ -1083,67 +1107,68 @@ function exemptThisPage() {
         "gi"
     );
     theCurrPrefString = theCurrPrefString.replace(theLocMatch, ""); //remove previous instances of URL in list
-    logForDebugging("EXEMPTION: Cookies are: ", docCookies.getItem("exemptPage"));
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Cookies are: ", docCookies.getItem("exemptPage"));
 
     docCookies.removeItem("exemptPage"); //make sure local cookie doesn't exist; will override cookie at "/"
     docCookies.setItem("exemptPage", theCurrPrefString + "<url>" + escape(encodeURIComponent(document.location.href)) +
         "<endurl>", Infinity,"/","."+getDomain()
     );
-    logForDebugging("EXEMPTION: adding URL: ", theLocMatch);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: adding URL: ", theLocMatch);
 
-    logForDebugging("EXEMPTION: Cookies are now: ", docCookies.getItem("exemptPage"));
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Cookies are now: ", docCookies.getItem("exemptPage"));
 
     location.reload(true);
 
 }
 
 function unexemptThisPage() {
-    logForDebugging("~~~ √736√ 'function unexemptThisPage( ) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √736√ 'function unexemptThisPage( ) ' ~ ~ ~", "", "ULTRA");
 
     //green star in lower right corner was clicked
-    logForDebugging("EXEMPTION: unexempting");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: unexempting");
 
     var theLocMatch = new RegExp("<url>" + escape(encodeURIComponent(document.location.href)) + "<endurl>",
         "gi"
     );
-    logForDebugging("EXEMPTION: Cookies are: ", docCookies.getItem("exemptPage"));
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Cookies are: ", docCookies.getItem("exemptPage"));
 
-    logForDebugging("EXEMPTION: theLocMatch is: ", theLocMatch);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: theLocMatch is: ", theLocMatch);
 
-    logForDebugging("EXEMPTION: theCurrPrefString is: ", theCurrPrefString);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: theCurrPrefString is: ", theCurrPrefString);
 
-    logForDebugging("EXEMPTION: theCurrPrefString.replace(theLocMatch, '') is: ",         theCurrPrefString.replace(theLocMatch, "")     );
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: theCurrPrefString.replace(theLocMatch, '') is: ",         theCurrPrefString.replace(theLocMatch, "")     );
 
         docCookies.removeItem("exemptPage"); //make sure local cookie doesn't exist; will override cookie at "/"
 
     docCookies.setItem("exemptPage", theCurrPrefString.replace(theLocMatch, "x"), Infinity,"/","."+getDomain());
-    logForDebugging("EXEMPTION: Writing URL: ", theLocMatch);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Writing URL: ", theLocMatch);
 
-    logForDebugging("EXEMPTION: Cookies are now: ", docCookies.getItem("exemptPage"));
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Cookies are now: ", docCookies.getItem("exemptPage"));
 
     location.reload(true);
 
 }
 
+
 function addUnblockLink(foundString) {
-    logForDebugging("~~~ √759√ starting 'function addUnblockLink( foundString) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √759√ starting 'function addUnblockLink( foundString) ' ~ ~ ~", "", "ULTRA");
 
     //put little star in lower right corner of window to toggle between element hiding/highlighting
     //observer.disconnect();
 
-    logForDebugging("EXEMPTION: add unblock link function start");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: add unblock link function start");
 
     var tempObserverEnable = observerEnable;
     observerEnable = false;
     var aMain = "";
     var blockString = thisPageIsExempt ? "reblock" : "unblock";
     if (!document.getElementById("pageBlocked_5832_xfi")) {
-        logForDebugging("~~~ √768√ 'if ( !document.getElementById(''pageBlocked_5832_xfi'')) ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √768√ 'if ( !document.getElementById(''pageBlocked_5832_xfi'')) ' ~ ~ ~", "", "ULTRA");
 
         aMain = document.createElement("div");
 
     } else {
-        logForDebugging("~~~ √770√ 'else ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √770√ 'else ' ~ ~ ~", "", "ULTRA");
 
         var bMain = document.getElementById("pageBlocked_5832_xfi");
         aMain = bMain.parentNode;
@@ -1155,9 +1180,9 @@ function addUnblockLink(foundString) {
 
     }
     aMain.addEventListener("click", function() {
-            logForDebugging("~~~ √779√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √779√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
-            logForDebugging("EXEMPTION: clicked exempt");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: clicked exempt");
 
             exemptThisPage(0);
 
@@ -1165,7 +1190,7 @@ function addUnblockLink(foundString) {
         false
     );
     aMain.addEventListener("mouseout", function() {
-            logForDebugging("~~~ √787√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √787√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
             document.getElementById("pageBlocked_5832_xfi").style =
                 "width:12px;height:12px;text-align:center;display:block;cursor:pointer;font-size:9px;background:#FF0;position:fixed;z-index:999999999999999;border:1;bottom:0;right:0;color:#ff3300";
@@ -1174,7 +1199,7 @@ function addUnblockLink(foundString) {
         false
     );
     aMain.addEventListener("mouseover", function() {
-            logForDebugging("~~~ √795√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √795√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
             document.getElementById("pageBlocked_5832_xfi").style =
                 "width:32px;height:32pxtext-align:center;display:block;cursor:pointer;font-size:24px;background:#FF0;position:fixed;z-index:999999999999999;border:1;bottom:0;right:0;color:#ff3300";
@@ -1183,45 +1208,45 @@ function addUnblockLink(foundString) {
         false
     );
 
-    logForDebugging("tagname 2");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("tagname 2");
 
     /* do NOT let an automated checker tell you it should be "=== undefined" in the next line - that breaks the script! */
     if (document.getElementById("tinymce") == undefined ||
         document.getElementById("tinymce").tagName != "BODY"
     ) {
-        logForDebugging("~~~ √806√ starting 'if ( document.getElementById(''tinymce'') == undefined || 808 document.getElementById(''tinymce'').tagName != ''BODY'' 809 ) ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √806√ starting 'if ( document.getElementById(''tinymce'') == undefined || 808 document.getElementById(''tinymce'').tagName != ''BODY'' 809 ) ' ~ ~ ~", "", "ULTRA");
 
         //don't run in iframes generated by tinymce rich text editor - fix to block from running in Tumblr post dialogs
         aMain.title = blockString + foundString;
         if (thisPageIsExempt) {
-            logForDebugging("~~~ √812√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √812√ 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
             //display on Exempt pages
             aMain.innerHTML.firstChild =
                 "<li id='pageBlocked_5832_xfi' style='width:12px;text-align:center;display:block;cursor:pointer;font-size:9px;background:#FF0;position:fixed;z-index:999999999999999;border:1;bottom:0;right:0;color:#66ff00'>*</li>";
 
         } else {
-            logForDebugging("~~~ √816√ 'else ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √816√ 'else ' ~ ~ ~", "", "ULTRA");
 
             //display on non-Exempt pages
             aMain.innerHTML =
                 "<li id='pageBlocked_5832_xfi' style='width:12px;text-align:center;display:block;cursor:pointer;font-size:9px;background:#FF0;position:fixed;z-index:999999999999999;border:1;bottom:0;right:0;color:#ff3300'>*</li>";
 
         }
-        logForDebugging("~~~~~ √806√ ending 'if ( document.getElementById(''tinymce'') == undefined || 808 document.getElementById(''tinymce'').tagName != ''BODY'' 809 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √806√ ending 'if ( document.getElementById(''tinymce'') == undefined || 808 document.getElementById(''tinymce'').tagName != ''BODY'' 809 ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
     } else {
-        logForDebugging("~~~ √821√ 'else ' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √821√ 'else ' ~ ~ ~", "", "ULTRA");
 
-        logForDebugging("didn't add unblock link due to tinymce presence");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("didn't add unblock link due to tinymce presence");
 
 
     }
     document.body.appendChild(aMain);
-    logForDebugging("added unblock link", aMain);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("added unblock link", aMain);
 
     observerEnable = tempObserverEnable;
-    logForDebugging("~~~~~ √759√ ending 'function addUnblockLink( foundString) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √759√ ending 'function addUnblockLink( foundString) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 }
 
@@ -1242,17 +1267,17 @@ function getDomain(subdomain) {
 //******* End my own functions for global scope ********//
 
 /* don't run at all on excluded sites */
-logForDebugging("exempt regexp", exemptRegexp);
-logForDebugging("exempt document.location.href", document.location.href);
-logForDebugging("exempt hosts regexp is ", document.location.href.match(exemptRegexp));
-logForDebugging("exempt hosts regexp result ", (document.location.href.match(exemptRegexp) === null));
-logForDebugging("Page stupidHash is ", stupidHash(document.location.href));
-logForDebugging("stupidHash regexp result ", (stupidHash(document.location.href).match(exemptRegexp) === null));
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("exempt regexp", exemptRegexp);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("exempt document.location.href", document.location.href);
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("exempt hosts regexp is ", document.location.href.match(exemptRegexp));
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("exempt hosts regexp result ", (document.location.href.match(exemptRegexp) === null));
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Page stupidHash is ", stupidHash(document.location.href));
+!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("stupidHash regexp result ", (stupidHash(document.location.href).match(exemptRegexp) === null));
 
 if (document.location.href.match(exemptRegexp) === null && stupidHash(document.location.href).match(exemptRegexp) === null && ('H' + stupidHash(document.location.hostname)).match(exemptRegexp) === null) {
-    logForDebugging("~~~ √838√ starting 'if ( document.location.href.match(exemptRegexp) === null && stupidHash(document.location.href).match(exemptRegexp) === null && ('H'+stupidHash(document.location.hostname)).match(exemptRegexp) === null ) ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √838√ starting 'if ( document.location.href.match(exemptRegexp) === null && stupidHash(document.location.href).match(exemptRegexp) === null && ('H'+stupidHash(document.location.hostname)).match(exemptRegexp) === null ) ' ~ ~ ~", "", "ULTRA");
 
-    logForDebugging("page didn't match exemptions, running inside main look");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("page didn't match exemptions, running inside main look");
 
     //*** Here comes Mozilla's cookie framework... ***//
 
@@ -1280,7 +1305,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
     var docCookies = {
 
             getItem: function(sKey) { return GM_getValue(sKey);
-               /* //logForDebugging("~~~ √864√ 'function( sKey) ' ~ ~ ~", "", "ULTRA");
+               /* //!CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √864√ 'function( sKey) ' ~ ~ ~", "", "ULTRA");
 
                 return (decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" +
                         encodeURIComponent(sKey).replace(/[\-\.\+\*\(\)]/g, "\\$&") +
@@ -1291,10 +1316,10 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
 
             },
             setItem: function(sKey, sValue, vEnd, sPath, sDomain, bSecure) { return GM_setValue(sKey,sValue); /*
-                logForDebugging("~~~ √878√ starting 'function( sKey, sValue, vEnd, sPath, sDomain, bSecure) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √878√ starting 'function( sKey, sValue, vEnd, sPath, sDomain, bSecure) ' ~ ~ ~", "", "ULTRA");
 
                 if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
-                    logForDebugging("~~~ √879√ 'if ( !sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √879√ 'if ( !sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) ' ~ ~ ~", "", "ULTRA");
 
 
 
@@ -1302,7 +1327,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 }
                 var sExpires = "";
                 if (vEnd) {
-                    logForDebugging("~~~ √883√ starting 'if ( vEnd) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √883√ starting 'if ( vEnd) ' ~ ~ ~", "", "ULTRA");
 
                     switch (vEnd.constructor) {
 
@@ -1316,7 +1341,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                             sExpires = "; expires=" + vEnd.toUTCString();
                             break;
                     }
-                    logForDebugging("~~~~~ √883√ ending 'if ( vEnd) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √883√ ending 'if ( vEnd) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 }
                 document.cookie =
@@ -1328,15 +1353,15 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                     (sPath ? "; path=" + sPath : "") +
                     (bSecure ? "; secure" : "");
 
-                logForDebugging("~~~~~ √878√ ending 'function( sKey, sValue, vEnd, sPath, sDomain, bSecure) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √878√ ending 'function( sKey, sValue, vEnd, sPath, sDomain, bSecure) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 return true;
             */},
             removeItem: function(sKey, sPath, sDomain) { return true; /*
-                logForDebugging("~~~ √906√ starting 'function( sKey, sPath, sDomain) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √906√ starting 'function( sKey, sPath, sDomain) ' ~ ~ ~", "", "ULTRA");
 
                 if (!sKey || !this.hasItem(sKey)) {
-                    logForDebugging("~~~ √907√ 'if ( !sKey || !this.hasItem(sKey)) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √907√ 'if ( !sKey || !this.hasItem(sKey)) ' ~ ~ ~", "", "ULTRA");
 
 
 
@@ -1348,12 +1373,12 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                     (sDomain ? "; domain=" + sDomain : "") +
                     (sPath ? "; path=" + sPath : "");
 
-                logForDebugging("~~~~~ √906√ ending 'function( sKey, sPath, sDomain) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √906√ ending 'function( sKey, sPath, sDomain) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 return true;
             */ },
             hasItem: function(sKey) {
-                logForDebugging("~~~ √917√ 'function( sKey) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √917√ 'function( sKey) ' ~ ~ ~", "", "ULTRA");
 
 
                 return new RegExp("(?:^|;\\s*)" +
@@ -1362,7 +1387,7 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 ).test(document.cookie);
             },
             keys: /* optional method: you can safely remove it! */ function() {
-                logForDebugging("~~~ √924√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √924√ starting 'function( ) ' ~ ~ ~", "", "ULTRA");
 
                 var aKeys = document.cookie
                     .replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, "")
@@ -1372,42 +1397,42 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                     aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]);
                 }
 
-                logForDebugging("~~~~~ √924√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √924√ ending 'function( ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 return aKeys;
             }
 
         }
         //*** End Mozilla's cookie framework... ***//
-    logForDebugging("EXEMPTION: Cookies coming ", docCookies.getItem());
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: Cookies coming ", docCookies.getItem());
 
-    logForDebugging(" EXEMPTION: stringified ", JSON.stringify(docCookies));
-
+//    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging(" EXEMPTION: stringified :", JSON.stringify(docCookies, getCircularReplacer()));
+//I think that stringify was slowing things up
 
     var theCurrPrefString = docCookies.getItem("exemptPage") || "";
-    logForDebugging("EXEMPTION: theCurrPrefString ", theCurrPrefString);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: theCurrPrefString ", theCurrPrefString);
 
     var thisPageIsExempt = HILIGHT_ONLY || !(theCurrPrefString.match("<url>" + escape(encodeURIComponent(document.location.href)) + "<endurl>") === null);
-    logForDebugging("EXEMPTION: thisPageIsExempt ", thisPageIsExempt);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: thisPageIsExempt ", thisPageIsExempt);
 
 
 
 
       if (thisPageIsExempt) {
-          GM_registerMenuCommand("Unexempt this page", unexemptThisPage, "");
-                logForDebugging("~~~ √970√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
+      //  disabling context menu; never worked.:  GM_registerMenuCommand("Unexempt this page", unexemptThisPage, "");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √970√ starting 'if ( thisPageIsExempt) ' ~ ~ ~", "", "ULTRA");
 
                 //add div to allow user to unexempt page
                 var aMain = document.createElement("div");
 
                 /* create clickable div to exempt page */
                 aMain.addEventListener("click", function() {
-                    logForDebugging("~~~ √973√ 'function( ) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √973√ 'function( ) ' ~ ~ ~", "", "ULTRA");
 
                     unexemptThisPage(0);
 
                 }, false);
-                //anonymous function() { //logForDebugging("~~~ √979√ 'function( ) ' ~ ~ ~","","ULTRA"); exemptThisPage(0);} is necessary because exemptThisPage(0) on its own thinks I mean "the value returned from exemptThisPage(0)" and immediately fires the function to calculate that.
+                //anonymous function() {exemptThisPage(0);} is necessary because exemptThisPage(0) on its own it thinks I mean "the value returned from exemptThisPage(0)" and immediately fires the exemptThisPage function to calculate that.
                 aMain.innerHTML =
                     "<li style='width:12px;text-align:center;display:block;cursor:pointer;font-size:9px;background:#FF0;position:fixed;z-index:999999999;border:1;bottom:0;right:0;color:#66ff00'>*</li>";
                 observerEnable = false;
@@ -1415,12 +1440,15 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
                 observerEnable = true;
                 /* end creating clickable div to exempt page */
 
-                logForDebugging("~~~~~ √970√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √970√ ending 'if ( thisPageIsExempt) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
       } else
-      {    logForDebugging("EXEMPTION: page not exempt, registering gm menu command ", "");
-          GM_registerMenuCommand("Exempt this page", exemptThisPage, "");}
+      {    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("EXEMPTION: page not exempt, registering gm menu command ", "");
+      // disabling context menu    GM_registerMenuCommand("Exempt this page", exemptThisPage, "");
+      }
 
+
+/* end context menu */
     var theDummy = {
 
         addedNodes: [document.body],
@@ -1435,33 +1463,33 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
 
     var observer = new aMutationObserver(function(mutations, observer) {
 
-        logForDebugging("~~~ √950√ starting 'function( mutations, observer) ' ~ ~ ~ for NEW MUTATIONS:", mutations, "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √950√ starting 'function( mutations, observer) ' ~ ~ ~ for NEW MUTATIONS:", mutations, "ULTRA");
 
         if (observerEnable) {
                observerEnable = false; /* debugger; */
-            logForDebugging("~~~ √951√ starting 'if ( observerEnable) ' ~ ~ ~", "", "ULTRA");
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √951√ starting 'if ( observerEnable) ' ~ ~ ~", "", "ULTRA");
 
             observer.disconnect();
             var thisSessionID = Math.random();
 
             var theNodes = mutations /*|| document.body.childNodes*/; /* do we really need that bit? commenting to see if anything breaks */
-            logForDebugging("theNodes is ", theNodes, "observer") ;
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("theNodes is ", theNodes, "observer") ;
             /* $("html,body").css("cursor", "not-allowed"); Don't know what this was for, suspect it was funkifying my youtube experience */
 
-            logForDebugging("About to forEach theNodes", theNodes);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("About to forEach theNodes", theNodes);
 
             theNodes.forEach(function(mutation) {
             var mutationtarget=mutation.target;
-                logForDebugging("Mutation ",mutation.target);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Mutation ",mutation.target);
             var mutationtargetjq=$(mutationtarget);
-                logForDebugging("~~~ √989√ starting 'function( mutation) ' ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √989√ starting 'function( mutation) ' ~ ~ ~", "", "ULTRA");
 
 
-                logForDebugging("forEach this node of TheNodes", mutation);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("forEach this node of TheNodes", mutation);
 
                 if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
                           observerEnable = false;
-                    logForDebugging("~~~ √992√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √992√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
 
                     mutationtarget.style =
@@ -1473,56 +1501,56 @@ if (document.location.href.match(exemptRegexp) === null && stupidHash(document.l
 
                 }
                 if(CONSOLE_DEBUGGING_MESSAGES_ON != false) {
-                logForDebugging("OBSERVED: 1. testing mutation: " + mutationtargetjq.text().substr(0, 50), mutation, "observer");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("OBSERVED: 1. testing mutation: " + mutationtargetjq.text().substr(0, 50), mutation, "observer");
 
-                logForDebugging("OBSERVED: 2. testing mutation target tagname: " + mutationtargetjq.text().substr(0, 50), mutationtarget.tagName, "observer");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("OBSERVED: 2. testing mutation target tagname: " + mutationtargetjq.text().substr(0, 50), mutationtarget.tagName, "observer");
 
-                logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + mutationtargetjq.text().substr(0, 50), mutationtarget.innerHTML, "observer");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("OBSERVED: 3. testing mutation target innerHTML: " + mutationtargetjq.text().substr(0, 50), mutationtarget.innerHTML, "observer");
 
 }
                 if ((mutationtarget.tagName != "BODY" || docbodyjq.data("firstrun") != thisSessionID) && mutation.type == "childList" && (mutation.addedNodes.length>0 ? !mutation.addedNodes[0].isContentEditable:false /* need ternary operator to avoid 'undefined' */)) {
-                    logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutationtarget.tagName, "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1006√ starting 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~. mutation.target.tagName is ", mutationtarget.tagName, "ULTRA");
 
-                    logForDebugging("~~~ √1006√   docbodyjq.data(''firstrun'') = ",  docbodyjq.data("firstrun") , "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1006√   docbodyjq.data(''firstrun'') = ",  docbodyjq.data("firstrun") , "ULTRA");
 
-                    logForDebugging("~~~ √1006√ thisSessionID = ", thisSessionID , "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1006√ thisSessionID = ", thisSessionID , "ULTRA");
 
                     /* just added these 7/4/18: && mutation.type == "childList" && !mutation.addedNodes[0].isContentEditable - can remove from nested conditional below if works for a while */
-                    logForDebugging("~~~ √1006√ mutation = ", mutation , "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1006√ mutation = ", mutation , "ULTRA");
 
                     //just process the changed bits, not the whole body more than once per session, ok?
                     docbodyjq.data("firstrun", thisSessionID);
                     if(CONSOLE_DEBUGGING_MESSAGES_ON != false) {
-                    logForDebugging("Passing as mutation for session ID " + thisSessionID + ":", mutation);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Passing as mutation for session ID " + thisSessionID + ":", mutation);
 
-                    logForDebugging("raw innerHTML to check:", mutationtarget.innerHTML);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("raw innerHTML to check:", mutationtarget.innerHTML);
 }
                     if (TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE != "") { /* next line was expensive due to match() */
 if (mutation.target.innerHTML.match(TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE)) {CONSOLE_DEBUGGING_MESSAGES_ON=true;
-  logForDebugging("Turning logging on, found: ",TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE);
+  !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Turning logging on, found: ",TURN_CONSOLE_DEBUGGING_MESSAGES_ON_PHRASE);
  } }
                     var theMutTargetText = (mutationtarget.innerHTML || "").replace(/\<(IMG[^>]*)>/gi, " $1 ").replace(/\<[^>]*>/gi, " "); //keep the image tags for the alt attributes, and replace all other html with spaces to separate text blocks.
-                    logForDebugging("About to create theseMatches, theMutTargetText is:", theMutTargetText);
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("About to create theseMatches, theMutTargetText is:", theMutTargetText);
 
 /* ADD OPTIMIZATION HERE: restore checking theseMatches on next line, but add term so MainScript runs if a selectorToAlwaysHide is found, even if mtheseMatches don't produce any matches. */
                     var theseMatches = theMutTargetText.match(theBadWordsAndFBNames) || []; /* this effectively disables the requirement that bad words match to run MainScript. That's needed because the SelectorsToAlwaysHide otherwise would not be hidden if no badwords matched somewhere in Mutation.target, since MainScript wouldn't run. */
 
                     if (--MAX_NUMBER_OF_CALLS_PER_PAGE > 0 && !!theMutTargetText && (theseMatches)  /* If we go back to scanning URL hrefs, this will have to be disabled, because it will need to check nodes even if bad terms are not in visible text. */ ) {
-                        logForDebugging("~~~ √1029√ starting 'if ( --MAX_NUMBER_OF_CALLS_PER_PAGE > 0 && !!theMutTargetText && ( theseMatches) ) ' ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1029√ starting 'if ( --MAX_NUMBER_OF_CALLS_PER_PAGE > 0 && !!theMutTargetText && ( theseMatches) ) ' ~ ~ ~", "", "ULTRA");
 
-                        logForDebugging("about to shift",theseMatches);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("about to shift",theseMatches);
 var commenttext = document.createTextNode("<!-- WEBCOOLER FOUND MATCH "+theseMatches.join(",")+" -->");
 document.head.appendChild(commenttext);
                         var shift = theseMatches.shift();
-                        logForDebugging("About to create theNewMatches from theseMatches:", theseMatches);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("About to create theNewMatches from theseMatches:", theseMatches);
 
                         var theNewMatches = new RegExp(theseMatches.join("THEPIPEGOESHERE372333319").replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/THEPIPEGOESHERE372333319/gi, '|'), "gi"); //the replace is to sanitize string... if "]NRA[" is in the test of the page, this RegExp will choke without sanitization
 
                         if (!docbodyjq.data("FirstMutation")) {
-                            logForDebugging("~~~ √1042√ 'if ( !docbodyjq.data(''FirstMutation'')) ' ~ ~ ~", "We're in the condition to check the BODY on the first pass", "ULTRA");
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1042√ 'if ( !docbodyjq.data(''FirstMutation'')) ' ~ ~ ~", "We're in the condition to check the BODY on the first pass", "ULTRA");
 
                             /* on the very first time this is called on a page, use the whole body to make sure everything gets checked once. */
-                            logForDebugging("First Mutation for page. passing Body.");
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("First Mutation for page. passing Body.");
 
                             docbodyjq.data("FirstMutation", true);
                             /* debugger; */
@@ -1531,11 +1559,11 @@ document.head.appendChild(commenttext);
 
 
                         } else {
-                            logForDebugging("Not running initial scan of body because !docbodyjq.data('FirstMutation') is ", !docbodyjq.data("FirstMutation"));
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Not running initial scan of body because !docbodyjq.data('FirstMutation') is ", !docbodyjq.data("FirstMutation"));
 
                         }
                         if (HILIGHT_ELEMENTS_BEING_PROCESSED) {
-                            logForDebugging("~~~ √1053√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1053√ 'if ( HILIGHT_ELEMENTS_BEING_PROCESSED) ' ~ ~ ~", "", "ULTRA");
 
                             observerEnable = false; /* debugger; */
                             mutationtarget.style =
@@ -1545,7 +1573,7 @@ document.head.appendChild(commenttext);
                             observerEnable = true;
 
                         }
-                        logForDebugging("About to call main with", mutation);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("About to call main with", mutation);
 
 
                         /* debugger; */
@@ -1555,56 +1583,56 @@ document.head.appendChild(commenttext);
                                 mainScript(-1, 5000, mutation, thisSessionID, theNewMatches);
                             }
                             catch (err) {
-                                logForDebugging("ERROR ON MAIN: ",err);
+                                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("ERROR ON MAIN: ",err);
 
 
                                 alert(err.message);
                                 debugger;
                             }
                         } else {
-                              logForDebugging("failed to call mainscript... ",mutation);
-                            logForDebugging("failed conditional on 965, not running Main for theMutTargetText: ", theMutTargetText);
+                              !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed to call mainscript... ",mutation);
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed conditional on 965, not running Main for theMutTargetText: ", theMutTargetText);
 
-                            logForDebugging("failed conditional on 965 whole mutation was: ", mutation);
+                            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed conditional on 965 whole mutation was: ", mutation);
 
                         }
 
-                        logForDebugging("~~~~~ √1029√ ending 'if ( --MAX_NUMBER_OF_CALLS_PER_PAGE > 0 && !!theMutTargetText && ( theseMatches) ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √1029√ ending 'if ( --MAX_NUMBER_OF_CALLS_PER_PAGE > 0 && !!theMutTargetText && ( theseMatches) ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                     } else {
-                       logForDebugging("failed outer conditional, won't run mainscript!");
-                        logForDebugging("~~~ √1065√ 'else ' ~ ~ ~", "", "ULTRA");
+                       !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed outer conditional, won't run mainscript!");
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1065√ 'else ' ~ ~ ~", "", "ULTRA");
 
-                        logForDebugging("failed MAX_NUMBER_OF_CALLS_PER_PAGE:" , MAX_NUMBER_OF_CALLS_PER_PAGE);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed MAX_NUMBER_OF_CALLS_PER_PAGE:" , MAX_NUMBER_OF_CALLS_PER_PAGE);
 
-                        logForDebugging("failed theBadWordsAndFBNames:" , theBadWordsAndFBNames);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed theBadWordsAndFBNames:" , theBadWordsAndFBNames);
 
 
-                        logForDebugging("failed theseMatches:" , theseMatches);
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("failed theseMatches:" , theseMatches);
 
 
                         var theInnerText =
                             theMutTargetText ||
                             ""; /* otherwise the (match) line below causes a fatal error on no innertext */
-                        logForDebugging("Ran too many times or no text or no match: (count) ",                             MAX_NUMBER_OF_CALLS_PER_PAGE                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Ran too many times or no text or no match: (count) ",                             MAX_NUMBER_OF_CALLS_PER_PAGE                         );
 
-                        logForDebugging("Ran too many times or no text or no match: (innerText) ",                             theInnerText                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Ran too many times or no text or no match: (innerText) ",                             theInnerText                         );
 
-                        logForDebugging("Ran too many times or no text or no match: (match) ",                             theInnerText.match(theBadWords)                         );
+                        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("Ran too many times or no text or no match: (match) ",                             theInnerText.match(theBadWords)                         );
 
 
                     }
                     /* $("html,body").css("cursor", "auto"); dunno why i had this */
-                    logForDebugging("~~~~~ √1006√ ending 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √1006√ ending 'if ( mutation.target.tagName != ''BODY'' || docbodyjq.data(''firstrun'') != thisSessionID ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
                 }
-                logForDebugging("~~~~~ √989√ ending 'function( mutation) ' ~ ~ ~ ~ ~", "", "ULTRA");
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √989√ ending 'function( mutation) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
             });
             /* end foreach (mutation) */
             //restart observer
             /* document.mkObserverFlag = undefined; */
-            logForDebugging ("~~~~~ √1587√ about to restart observer. ObserverEnable ",observerEnable);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging ("~~~~~ √1587√ about to restart observer. ObserverEnable ",observerEnable);
             observer.observe( document.body, {
                 subtree: true,
                 attributes: false,
@@ -1616,7 +1644,7 @@ document.head.appendChild(commenttext);
             });
            observerEnable = true; /* debugger; */
         } // end if
-        logForDebugging("~~~~~ √950√ ending 'function( mutations, observer) ' ~ ~ ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √950√ ending 'function( mutations, observer) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 
     });
@@ -1625,7 +1653,7 @@ document.head.appendChild(commenttext);
 
     // define what element should be observed by the observer
     // and what types of mutations trigger the callback
-                logForDebugging ("~~~~~ √1608√ about to restart observer. ObserverEnable ",observerEnable);
+                !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging ("~~~~~ √1608√ about to restart observer. ObserverEnable ",observerEnable);
     observer.observe( document.body, {
         subtree: true,
         attributes: false,
@@ -1637,33 +1665,33 @@ document.head.appendChild(commenttext);
     });
 
     var theInnerHTML = theDummy.target.innerHTML || "";
-    logForDebugging("about to see if should run main on Body. the InnerHTML is ", theInnerHTML);
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("about to see if should run main on Body. the InnerHTML is ", theInnerHTML);
 
     if (theInnerHTML.match(theBadWordsAndFBNames)) {
-        logForDebugging("~~~ √1111√ starting 'if( theInnerHTML.match(theBadWordsAndFBNames))' ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1111√ starting 'if( theInnerHTML.match(theBadWordsAndFBNames))' ~ ~ ~", "", "ULTRA");
 
-        logForDebugging("running main with theDummy:", theDummy);
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("running main with theDummy:", theDummy);
 
         try {
             mainScript(-1, 5000, theDummy, "000", theBadWordsAndFBNames);
         }
         catch (err) {
-            logForDebugging("ERROR ON MAIN: ",err);
+            !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("ERROR ON MAIN: ",err);
 
             alert(err.message);
             debugger;
         }
-        logForDebugging("~~~~~ √1111√ ending 'if( theInnerHTML.match(theBadWordsAndFBNames))' ~ ~ ~ ~ ~", "", "ULTRA");
+        !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √1111√ ending 'if( theInnerHTML.match(theBadWordsAndFBNames))' ~ ~ ~ ~ ~", "", "ULTRA");
 
 
     }
 
-    logForDebugging("~~~~~ √838√ ending 'if ( document.location.href.match(exemptRegexp) === null && stupidHash(document.location.href).match(exemptRegexp) === null && ('H'+stupidHash(document.location.hostname)).match(exemptRegexp) === null ) ' ~ ~ ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~~~ √838√ ending 'if ( document.location.href.match(exemptRegexp) === null && stupidHash(document.location.href).match(exemptRegexp) === null && ('H'+stupidHash(document.location.hostname)).match(exemptRegexp) === null ) ' ~ ~ ~ ~ ~", "", "ULTRA");
 
 } else {
-    logForDebugging("~~~ √1116√ 'else ' ~ ~ ~", "", "ULTRA");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("~~~ √1116√ 'else ' ~ ~ ~", "", "ULTRA");
 
-    logForDebugging("page matched exemptions, didn't run");
+    !CONSOLE_DEBUGGING_MESSAGES_ON || logForDebugging("page matched exemptions, didn't run");
 
 
 }
