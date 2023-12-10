@@ -6,6 +6,8 @@ Basically if there is a person, event, or website whose existence irritates me, 
 WebCooler goes great with GreaseMonkey, TamperMonkey, or your favorite monkey or non-monkey browser userscript manager. 
 
 # I AM
-Michael E. Kupietz, engineer of custom business & personal solutions for FileMaker Pro ◊ Web ◊ Tradingview Pine Script 
-https://www.kupietz.com    
-github.com/kupietools
+Michael E. Kupietz, software engineering, consulting, & support for FileMaker Pro, Full-Stack Web, Desktop OS, & TradingView platforms  
+https://kupietz.com (Business info)  
+https://github.com/kupietools (Free software)  
+https://michaelkupietz.com (Personal & creative showcase)  
+
